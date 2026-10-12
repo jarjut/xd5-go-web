@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { XD5Protocol } from '../core/protocol';
-import { ProfileManager } from '../core/profiles';
+import { serializeSettingsToEEPROM } from '../core/settings';
 import type {
   HIDDevice,
   TransportType,
@@ -8,7 +8,7 @@ import type {
   DeviceEvent,
   LogEntry,
 } from '../types/protocol';
-import type { Profile } from '../types/profile';
+import type { MouseSettings } from '../types/settings';
 
 export interface DeviceContextType {
   isConnected: boolean;
@@ -20,8 +20,8 @@ export interface DeviceContextType {
   disconnect: () => void;
   sendHandshake: (active?: boolean) => Promise<void>;
   pollBattery: () => Promise<void>;
-  applyProfileToHardware: (profile: Profile) => Promise<void>;
-  readProfileFromHardware: () => Promise<Uint8Array>;
+  applySettingsToHardware: (settings: MouseSettings) => Promise<void>;
+  readSettingsFromHardware: () => Promise<Uint8Array>;
   isConnecting: boolean;
   isSyncing: boolean;
   clearLogs: () => void;
@@ -144,18 +144,17 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
     await protocol.queryBattery();
   }, [protocol]);
 
-  const applyProfileToHardware = useCallback(
-    async (profile: Profile) => {
+  const applySettingsToHardware = useCallback(
+    async (settings: MouseSettings) => {
       if (!protocol.isConnected) {
         throw new Error('Mouse is not connected.');
       }
       setIsSyncing(true);
       try {
-        const pm = new ProfileManager();
-        const bytes = pm.serializeProfileToEEPROM(profile);
+        const bytes = serializeSettingsToEEPROM(settings);
         await protocol.writeEEPROM(0x00, bytes);
         await protocol.commitFlash();
-        protocol.log('Profile successfully applied to hardware and committed to flash.', 'in');
+        protocol.log('Settings successfully applied to hardware and committed to flash.', 'in');
       } finally {
         setIsSyncing(false);
       }
@@ -163,7 +162,7 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
     [protocol]
   );
 
-  const readProfileFromHardware = useCallback(async (): Promise<Uint8Array> => {
+  const readSettingsFromHardware = useCallback(async (): Promise<Uint8Array> => {
     if (!protocol.isConnected) {
       throw new Error('Mouse is not connected.');
     }
@@ -199,8 +198,8 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
       disconnect,
       sendHandshake,
       pollBattery,
-      applyProfileToHardware,
-      readProfileFromHardware,
+      applySettingsToHardware,
+      readSettingsFromHardware,
       isConnecting,
       isSyncing,
       clearLogs,
@@ -216,10 +215,10 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
       logs,
       connect,
       disconnect,
-      sendHandshake,
-      pollBattery,
-      applyProfileToHardware,
-      readProfileFromHardware,
+      applySettingsToHardware,
+      readSettingsFromHardware,
+      applyProfileToHardware: applySettingsToHardware as any,
+      readProfileFromHardware: readSettingsFromHardware,
       isConnecting,
       isSyncing,
       clearLogs,
