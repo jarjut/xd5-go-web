@@ -10,17 +10,14 @@ import {
   Wifi,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
-import { useProfiles } from '../../context/ProfileContext';
-import { ProfileBar } from './ProfileBar';
+import { useSettings } from '../../context/SettingsContext';
 
 export interface HeaderProps {
-  showProfileBar?: boolean;
   className?: string;
   children?: React.ReactNode;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  showProfileBar = false,
   className = '',
   children,
 }) => {
@@ -34,7 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
     isSyncing,
   } = useDevice();
 
-  const { isDirty, applyToDevice, readFromDevice } = useProfiles();
+  const { isDirty, applyToDevice, readFromDevice } = useSettings();
 
   const handleConnectToggle = async () => {
     if (isConnected) {
@@ -53,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
     try {
       await readFromDevice();
     } catch (err: unknown) {
-      console.error('Failed to read profile:', err);
+      console.error('Failed to read device settings:', err);
     }
   };
 
@@ -200,7 +197,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Read configuration from mouse hardware"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Read Profile</span>
+            <span className="hidden sm:inline">Read Device</span>
             <span className="sm:hidden">Read</span>
           </button>
 
@@ -252,7 +249,6 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {showProfileBar && <ProfileBar />}
       {children}
     </header>
   );

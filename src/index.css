@@ -4,9 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --profile-accent: #00e5ff;
-}
 
 body {
   background-color: #090a0f;
