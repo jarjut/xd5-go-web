@@ -1,7 +1,7 @@
 import React from 'react';
 import { Target, Split, Plus, Minus } from 'lucide-react';
-import { useProfiles } from '../../context/ProfileContext';
-import type { DpiStage } from '../../types/profile';
+import { useSettings } from '../../context/SettingsContext';
+import type { DpiStage } from '../../types/settings';
 
 export interface DpiPanelProps {
   className?: string;
@@ -135,14 +135,14 @@ export const DpiNumericInput: React.FC<DpiNumericInputProps> = ({
 };
 
 export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
-  const { activeProfile, updateActiveProfile } = useProfiles();
+  const { settings, updateSettings } = useSettings();
 
   // Ensure 7 stages exist
   const stages: DpiStage[] = React.useMemo(() => {
-    if (!activeProfile?.dpiStages || activeProfile.dpiStages.length === 0) {
+    if (!settings?.dpiStages || settings.dpiStages.length === 0) {
       return DEFAULT_STAGES;
     }
-    const current = [...activeProfile.dpiStages];
+    const current = [...settings.dpiStages];
     while (current.length < 7) {
       current.push(DEFAULT_STAGES[current.length] || {
         enabled: true,
@@ -152,15 +152,15 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
       });
     }
     return current.slice(0, 7);
-  }, [activeProfile?.dpiStages]);
+  }, [settings?.dpiStages]);
 
-  const activeStageNum = activeProfile?.activeDpiStage || 1;
-  const separateXY = Boolean(activeProfile?.separateXY);
+  const activeStageNum = settings?.activeDpiStage || 1;
+  const separateXY = Boolean(settings?.separateXY);
   const enabledCount = stages.filter((s) => s.enabled).length;
 
   const updateStage = (idx: number, updates: Partial<DpiStage>) => {
     const newStages = stages.map((s, i) => (i === idx ? { ...s, ...updates } : s));
-    updateActiveProfile({ dpiStages: newStages });
+    updateSettings({ dpiStages: newStages });
   };
 
   const handleToggleEnable = (idx: number, nextEnabled: boolean) => {
@@ -176,7 +176,7 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
       }
     }
 
-    updateActiveProfile({
+    updateSettings({
       dpiStages: newStages,
       activeDpiStage: nextActive,
     });
@@ -187,9 +187,9 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
     if (!nextVal) {
       // Sync Y axis to X axis
       const newStages = stages.map((s) => ({ ...s, y: s.x }));
-      updateActiveProfile({ separateXY: false, dpiStages: newStages });
+      updateSettings({ separateXY: false, dpiStages: newStages });
     } else {
-      updateActiveProfile({ separateXY: true });
+      updateSettings({ separateXY: true });
     }
   };
 
@@ -271,7 +271,7 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
                       value={stageNum}
                       checked={isActive}
                       disabled={!stage.enabled}
-                      onChange={() => updateActiveProfile({ activeDpiStage: stageNum })}
+                      onChange={() => updateSettings({ activeDpiStage: stageNum })}
                       aria-label={`Active Stage ${stageNum}`}
                       className="w-4 h-4 accent-brand cursor-pointer disabled:cursor-not-allowed"
                     />

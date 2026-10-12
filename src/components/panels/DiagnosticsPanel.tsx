@@ -28,7 +28,7 @@ const SPEC_DETAILS = {
 const DEFAULT_BANNER = `Fantech Helios Go XD5 WebHID Protocol Initialized.
 Target VID: 0x25A7 | PID: 0xFA7B (Wired) / 0xFA7C (2.4G Wireless)
 Packet Spec: 17 Bytes Feature Reports (Report ID: 0x08, Checksum: sum mod 256 = 0x55)
-Profile Management: Persistent in LocalStorage & Synchronized with Hardware Command 0x10.`;
+Settings Management: Persistent in LocalStorage & Synchronized with Hardware EEPROM.`;
 
 export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ className = '' }) => {
   const {

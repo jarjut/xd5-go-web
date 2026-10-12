@@ -8,7 +8,7 @@ import {
   Sliders,
   ChevronRight,
 } from 'lucide-react';
-import { useProfiles } from '../../context/ProfileContext';
+import { useSettings } from '../../context/SettingsContext';
 
 export interface KeyRemapPanelProps {
   focusedButton?: number | null;
@@ -134,9 +134,9 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
   onHoverButton,
   className = '',
 }) => {
-  const { activeProfile, updateActiveProfile } = useProfiles();
+  const { settings, updateSettings } = useSettings();
 
-  const keys = activeProfile?.keys || {
+  const keys = settings?.keys || {
     key1: '0x00000101',
     key2: '0x00000201',
     key3: '0x00000401',
@@ -146,7 +146,7 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
   };
 
   const handleKeyChange = (keyName: string, newValue: string) => {
-    updateActiveProfile({
+    updateSettings({
       keys: {
         ...keys,
         [keyName]: newValue,
@@ -155,7 +155,7 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
   };
 
   const handleResetDefaults = () => {
-    updateActiveProfile({
+    updateSettings({
       keys: {
         key1: '0x00000101',
         key2: '0x00000201',

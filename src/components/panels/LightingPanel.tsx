@@ -10,8 +10,8 @@ import {
   Palette,
   Check,
 } from 'lucide-react';
-import { useProfiles } from '../../context/ProfileContext';
-import type { LightingSettings } from '../../types/profile';
+import { useSettings } from '../../context/SettingsContext';
+import type { LightingSettings } from '../../types/settings';
 
 export interface LightingPanelProps {
   className?: string;
@@ -78,9 +78,9 @@ export const LED_MODES_CONFIG: readonly LedModeItem[] = [
 ] as const;
 
 export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) => {
-  const { activeProfile, updateActiveProfile } = useProfiles();
+  const { settings, updateSettings } = useSettings();
 
-  const lighting: LightingSettings = activeProfile?.lighting || {
+  const lighting: LightingSettings = settings?.lighting || {
     mode: 0,
     color: '#00e5ff',
     brightness: 8,
@@ -97,7 +97,7 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
   }, [lighting.color]);
 
   const onSelectMode = (modeId: number) => {
-    updateActiveProfile({
+    updateSettings({
       lighting: {
         ...lighting,
         mode: modeId,
@@ -108,7 +108,7 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
   const onColorPickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextColor = e.target.value.toLowerCase();
     setHexInput(nextColor);
-    updateActiveProfile({
+    updateSettings({
       lighting: {
         ...lighting,
         color: nextColor,
@@ -123,7 +123,7 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
     }
     setHexInput(val);
     if (/^#[0-9a-fA-F]{6}$/i.test(val)) {
-      updateActiveProfile({
+      updateSettings({
         lighting: {
           ...lighting,
           color: val.toLowerCase(),
@@ -132,20 +132,9 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
     }
   };
 
-  const onMatchProfileAccent = () => {
-    const accent = activeProfile?.profileColor || activeProfile?.accentColor || '#00e5ff';
-    setHexInput(accent);
-    updateActiveProfile({
-      lighting: {
-        ...lighting,
-        color: accent,
-      },
-    });
-  };
-
   const onSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const speed = Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 5));
-    updateActiveProfile({
+    updateSettings({
       lighting: {
         ...lighting,
         speed,
@@ -155,7 +144,7 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
 
   const onBrightnessChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const brightness = Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 5));
-    updateActiveProfile({
+    updateSettings({
       lighting: {
         ...lighting,
         brightness,
@@ -254,17 +243,6 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
                 Single-color illumination for {activeMode.name} mode
               </p>
             </div>
-
-            {/* Quick Action: Match Profile Accent */}
-            <button
-              type="button"
-              onClick={onMatchProfileAccent}
-              aria-label="Match Profile Accent"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-base border border-subtle hover:bg-hover hover:border-slate-600 text-xs font-semibold text-slate-200 transition-colors"
-            >
-              <Palette className="w-3.5 h-3.5 text-cyan" />
-              <span>Match Profile Accent</span>
-            </button>
           </div>
 
           <div className="flex items-center gap-4 pt-1">

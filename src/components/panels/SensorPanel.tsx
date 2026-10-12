@@ -5,7 +5,7 @@ import {
   LightbulbOff,
   Move,
 } from 'lucide-react';
-import { useProfiles } from '../../context/ProfileContext';
+import { useSettings } from '../../context/SettingsContext';
 
 export interface SensorPanelProps {
   className?: string;
@@ -24,15 +24,15 @@ export const LOD_OPTIONS = [
 ];
 
 export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
-  const { activeProfile, updateActiveProfile } = useProfiles();
+  const { settings, updateSettings } = useSettings();
 
-  const pollingRate = activeProfile?.pollingRate ?? 1000;
-  const lod = activeProfile?.lod ?? 1;
-  const debounce = activeProfile?.debounce ?? 12;
-  const sleepMin = activeProfile?.sleepMin ?? 10;
-  const ripple = Boolean(activeProfile?.ripple);
-  const angleSnap = Boolean(activeProfile?.angleSnap);
-  const turnOffOnMove = Boolean(activeProfile?.turnOffOnMove ?? true);
+  const pollingRate = settings?.pollingRate ?? 1000;
+  const lod = settings?.lod ?? 1;
+  const debounce = settings?.debounce ?? 12;
+  const sleepMin = settings?.sleepMin ?? 10;
+  const ripple = Boolean(settings?.ripple);
+  const angleSnap = Boolean(settings?.angleSnap);
+  const turnOffOnMove = Boolean(settings?.turnOffOnMove ?? true);
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -77,7 +77,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                   key={opt.value}
                   type="button"
                   data-active={isActive ? 'true' : 'false'}
-                  onClick={() => updateActiveProfile({ pollingRate: opt.value })}
+                  onClick={() => updateSettings({ pollingRate: opt.value })}
                   aria-label={`${opt.label} Polling Rate`}
                   className={`py-2 px-1 rounded-lg font-display text-xs font-semibold transition-all border cursor-pointer text-center select-none ${
                     isActive
@@ -119,7 +119,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                   key={opt.value}
                   type="button"
                   data-active={isActive ? 'true' : 'false'}
-                  onClick={() => updateActiveProfile({ lod: opt.value })}
+                  onClick={() => updateSettings({ lod: opt.value })}
                   aria-label={`${opt.label} LOD`}
                   className={`py-2 px-3 rounded-lg font-display text-xs font-semibold transition-all border cursor-pointer text-center select-none ${
                     isActive
@@ -165,7 +165,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
               step={1}
               aria-label="Debounce Time"
               value={debounce}
-              onChange={(e) => updateActiveProfile({ debounce: Number(e.target.value) })}
+              onChange={(e) => updateSettings({ debounce: Number(e.target.value) })}
               className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-cyan"
             />
             <div className="flex justify-between text-[10px] text-slate-400 font-mono">
@@ -204,7 +204,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
               step={1}
               aria-label="Auto-Sleep Timer"
               value={sleepMin}
-              onChange={(e) => updateActiveProfile({ sleepMin: Number(e.target.value) })}
+              onChange={(e) => updateSettings({ sleepMin: Number(e.target.value) })}
               className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-cyan"
             />
             <div className="flex justify-between text-[10px] text-slate-400 font-mono">
@@ -248,7 +248,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                 type="checkbox"
                 aria-label="Ripple Control"
                 checked={ripple}
-                onChange={(e) => updateActiveProfile({ ripple: e.target.checked })}
+                onChange={(e) => updateSettings({ ripple: e.target.checked })}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border border-subtle peer-checked:bg-cyan peer-checked:border-cyan" />
@@ -280,7 +280,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                 type="checkbox"
                 aria-label="Angle Snapping"
                 checked={angleSnap}
-                onChange={(e) => updateActiveProfile({ angleSnap: e.target.checked })}
+                onChange={(e) => updateSettings({ angleSnap: e.target.checked })}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border border-subtle peer-checked:bg-cyan peer-checked:border-cyan" />
@@ -312,7 +312,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                 type="checkbox"
                 aria-label="Turn OFF Light on Moving"
                 checked={turnOffOnMove}
-                onChange={(e) => updateActiveProfile({ turnOffOnMove: e.target.checked })}
+                onChange={(e) => updateSettings({ turnOffOnMove: e.target.checked })}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border border-subtle peer-checked:bg-cyan peer-checked:border-cyan" />

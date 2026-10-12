@@ -3,11 +3,11 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { SensorPanel } from '../components/panels/SensorPanel';
 import { KeyRemapPanel } from '../components/panels/KeyRemapPanel';
 import { DiagnosticsPanel } from '../components/panels/DiagnosticsPanel';
-import { ProfileProvider, ProfileContext } from '../context/ProfileContext';
+import { SettingsProvider, SettingsContext } from '../context/SettingsContext';
 import { DeviceProvider, DeviceContext } from '../context/DeviceContext';
-import { createDefaultProfile } from '../core/profiles';
+import { createDefaultSettings } from '../core/settings';
 import type { DeviceContextType } from '../context/DeviceContext';
-import type { ProfileContextType } from '../context/ProfileContext';
+import type { SettingsContextType } from '../context/SettingsContext';
 
 describe('Performance and Remapping Panels', () => {
   beforeEach(() => {
@@ -17,9 +17,9 @@ describe('Performance and Remapping Panels', () => {
   describe('SensorPanel', () => {
     it('renders polling rate buttons and debounce slider', () => {
       render(
-        <ProfileProvider>
+        <SettingsProvider>
           <SensorPanel />
-        </ProfileProvider>
+        </SettingsProvider>
       );
 
       expect(screen.getByText('1000 Hz')).toBeDefined();
@@ -31,9 +31,9 @@ describe('Performance and Remapping Panels', () => {
 
     it('renders LOD options and sleep timer slider', () => {
       render(
-        <ProfileProvider>
+        <SettingsProvider>
           <SensorPanel />
-        </ProfileProvider>
+        </SettingsProvider>
       );
 
       expect(screen.getByText(/1\s*mm/i)).toBeDefined();
@@ -43,9 +43,9 @@ describe('Performance and Remapping Panels', () => {
 
     it('allows changing polling rate and LOD pills', () => {
       render(
-        <ProfileProvider>
+        <SettingsProvider>
           <SensorPanel />
-        </ProfileProvider>
+        </SettingsProvider>
       );
 
       const poll500Btn = screen.getByRole('button', { name: /500 Hz/i });
@@ -59,9 +59,9 @@ describe('Performance and Remapping Panels', () => {
 
     it('allows adjusting debounce and sleep timer sliders', () => {
       render(
-        <ProfileProvider>
+        <SettingsProvider>
           <SensorPanel />
-        </ProfileProvider>
+        </SettingsProvider>
       );
 
       const debounceSlider = screen.getByLabelText(/Debounce Time/i) as HTMLInputElement;
@@ -77,9 +77,9 @@ describe('Performance and Remapping Panels', () => {
 
     it('toggles Ripple Control, Angle Snapping, and Turn OFF Light on Moving', () => {
       render(
-        <ProfileProvider>
+        <SettingsProvider>
           <SensorPanel />
-        </ProfileProvider>
+        </SettingsProvider>
       );
 
       const rippleToggle = screen.getByLabelText(/Ripple Control/i) as HTMLInputElement;
@@ -102,9 +102,9 @@ describe('Performance and Remapping Panels', () => {
   describe('KeyRemapPanel', () => {
     it('renders all 6 mouse button remap selectors', () => {
       render(
-        <ProfileProvider>
+        <SettingsProvider>
           <KeyRemapPanel focusedButton={null} onHoverButton={() => {}} />
-        </ProfileProvider>
+        </SettingsProvider>
       );
 
       expect(screen.getByText(/1\. Left Click/i)).toBeDefined();
@@ -117,9 +117,9 @@ describe('Performance and Remapping Panels', () => {
 
     it('renders categorized option groups in key remap selectors', () => {
       render(
-        <ProfileProvider>
+        <SettingsProvider>
           <KeyRemapPanel focusedButton={null} onHoverButton={() => {}} />
-        </ProfileProvider>
+        </SettingsProvider>
       );
 
       const key1Select = screen.getByLabelText(/1\. Left Click/i) as HTMLSelectElement;
@@ -135,9 +135,9 @@ describe('Performance and Remapping Panels', () => {
     it('triggers onHoverButton on mouseEnter and mouseLeave', () => {
       const onHover = vi.fn();
       render(
-        <ProfileProvider>
+        <SettingsProvider>
           <KeyRemapPanel focusedButton={null} onHoverButton={onHover} />
-        </ProfileProvider>
+        </SettingsProvider>
       );
 
       const card1 = screen.getByTestId('key-remap-card-1');
@@ -150,9 +150,9 @@ describe('Performance and Remapping Panels', () => {
 
     it('highlights focused button card when focusedButton prop is passed', () => {
       render(
-        <ProfileProvider>
+        <SettingsProvider>
           <KeyRemapPanel focusedButton={4} onHoverButton={() => {}} />
-        </ProfileProvider>
+        </SettingsProvider>
       );
 
       const card4 = screen.getByTestId('key-remap-card-4');
@@ -163,27 +163,25 @@ describe('Performance and Remapping Panels', () => {
     });
 
     it('updates key mapping when an option is selected', () => {
-      const initialProfile = createDefaultProfile(1, 'Test Profile');
-      const updateActiveProfile = vi.fn();
+      const initialSettings = createDefaultSettings();
+      const updateSettings = vi.fn();
 
-      const mockProfileContext: Partial<ProfileContextType> = {
-        profiles: [initialProfile],
-        activeProfile: initialProfile,
-        activeIndex: 0,
+      const mockSettingsContext: Partial<SettingsContextType> = {
+        settings: initialSettings,
         isDirty: false,
-        updateActiveProfile,
+        updateSettings,
       };
 
       render(
-        <ProfileContext.Provider value={mockProfileContext as ProfileContextType}>
+        <SettingsContext.Provider value={mockSettingsContext as SettingsContextType}>
           <KeyRemapPanel focusedButton={null} onHoverButton={() => {}} />
-        </ProfileContext.Provider>
+        </SettingsContext.Provider>
       );
 
       const key4Select = screen.getByLabelText(/4\. Back Button/i) as HTMLSelectElement;
       fireEvent.change(key4Select, { target: { value: '0x00000102' } }); // DPI +
 
-      expect(updateActiveProfile).toHaveBeenCalledWith({
+      expect(updateSettings).toHaveBeenCalledWith({
         keys: expect.objectContaining({
           key4: '0x00000102',
         }),
@@ -191,10 +189,10 @@ describe('Performance and Remapping Panels', () => {
     });
 
     it('resets key mappings to defaults when Reset to Default button is clicked', () => {
-      const updateActiveProfile = vi.fn();
-      const mockProfileContext: Partial<ProfileContextType> = {
-        activeProfile: {
-          ...createDefaultProfile(0, 'Custom Profile'),
+      const updateSettings = vi.fn();
+      const mockSettingsContext: Partial<SettingsContextType> = {
+        settings: {
+          ...createDefaultSettings(),
           keys: {
             key1: '0x00000201',
             key2: '0x00000101',
@@ -204,19 +202,19 @@ describe('Performance and Remapping Panels', () => {
             key6: '0x00000007',
           },
         },
-        updateActiveProfile,
+        updateSettings,
       };
 
       render(
-        <ProfileContext.Provider value={mockProfileContext as ProfileContextType}>
+        <SettingsContext.Provider value={mockSettingsContext as SettingsContextType}>
           <KeyRemapPanel focusedButton={null} onHoverButton={() => {}} />
-        </ProfileContext.Provider>
+        </SettingsContext.Provider>
       );
 
       const resetBtn = screen.getByRole('button', { name: /Reset to Default/i });
       fireEvent.click(resetBtn);
 
-      expect(updateActiveProfile).toHaveBeenCalledWith({
+      expect(updateSettings).toHaveBeenCalledWith({
         keys: {
           key1: '0x00000101',
           key2: '0x00000201',

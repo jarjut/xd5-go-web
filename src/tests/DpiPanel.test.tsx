@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DpiPanel } from '../components/panels/DpiPanel';
 import { LightingPanel } from '../components/panels/LightingPanel';
-import { ProfileProvider } from '../context/ProfileContext';
+import { SettingsProvider } from '../context/SettingsContext';
 
 describe('DpiPanel', () => {
   beforeEach(() => {
@@ -11,9 +11,9 @@ describe('DpiPanel', () => {
 
   it('renders 7 stages and allows toggling Separate X/Y DPI', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const toggle = screen.getByLabelText(/Separate X & Y DPI/i);
@@ -26,9 +26,9 @@ describe('DpiPanel', () => {
 
   it('renders 7 stage rows with stage numbers, swatches, and active stage radio', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     for (let i = 1; i <= 7; i++) {
@@ -41,9 +41,9 @@ describe('DpiPanel', () => {
 
   it('allows selecting an active stage via radio', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const radio3 = screen.getByLabelText(/Active Stage 3/i) as HTMLInputElement;
@@ -53,9 +53,9 @@ describe('DpiPanel', () => {
 
   it('allows disabling and enabling stages, preventing disabling all stages', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const enableCheck7 = screen.getByLabelText(/Enable Stage 7/i) as HTMLInputElement;
@@ -76,9 +76,9 @@ describe('DpiPanel', () => {
 
   it('updates stage color via color input', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const colorInput = screen.getByLabelText(/Stage 1 Color/i) as HTMLInputElement;
@@ -88,9 +88,9 @@ describe('DpiPanel', () => {
 
   it('updates DPI with PAW3370 step rules (50 <= 10K, 100 > 10K)', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const slider1 = screen.getByLabelText(/^Stage 1 DPI$/i) as HTMLInputElement;
@@ -109,9 +109,9 @@ describe('DpiPanel', () => {
 
   it('handles Separate X & Y DPI controls independently', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const toggle = screen.getByLabelText(/Separate X & Y DPI/i);
@@ -129,9 +129,9 @@ describe('DpiPanel', () => {
 
   it('increments and decrements DPI via steppers', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const numInput = screen.getByLabelText(/Stage 1 DPI Input/i) as HTMLInputElement;
@@ -150,9 +150,9 @@ describe('DpiPanel', () => {
 
   it('allows free typing in numeric input without eager snapping and commits on blur', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const numInput = screen.getByLabelText(/Stage 1 DPI Input/i) as HTMLInputElement;
@@ -179,9 +179,9 @@ describe('DpiPanel', () => {
 
   it('commits numeric input on Enter key', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const numInput = screen.getByLabelText(/Stage 2 DPI Input/i) as HTMLInputElement;
@@ -198,9 +198,9 @@ describe('DpiPanel', () => {
 
   it('clamps and snaps numeric input on blur according to PAW3370 rules', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const numInput = screen.getByLabelText(/Stage 1 DPI Input/i) as HTMLInputElement;
@@ -226,9 +226,9 @@ describe('DpiPanel', () => {
 
   it('sets dynamic slider step attribute based on current value threshold', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <DpiPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     // Stage 1 default is 800 (< 10000) -> step should be 50
@@ -252,9 +252,9 @@ describe('LightingPanel', () => {
 
   it('renders all 7 LED mode cards and allows selecting them', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <LightingPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const modes = [
@@ -281,9 +281,9 @@ describe('LightingPanel', () => {
 
   it('updates custom LED color and hex input', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <LightingPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     // Switch to Steady mode which supports color
@@ -300,28 +300,12 @@ describe('LightingPanel', () => {
     expect(colorPicker.value.toLowerCase()).toBe('#00ffcc');
   });
 
-  it('matches profile accent color via quick action button', () => {
-    render(
-      <ProfileProvider>
-        <LightingPanel />
-      </ProfileProvider>
-    );
-
-    // Switch to Steady
-    fireEvent.click(screen.getByRole('button', { name: /^Steady$/i }));
-
-    const matchBtn = screen.getByRole('button', { name: /Match Profile Accent/i });
-    fireEvent.click(matchBtn);
-
-    const colorPicker = screen.getByLabelText(/LED Color Picker/i) as HTMLInputElement;
-    expect(colorPicker.value).toBeTruthy();
-  });
 
   it('updates speed and brightness sliders within 1-10 range', () => {
     render(
-      <ProfileProvider>
+      <SettingsProvider>
         <LightingPanel />
-      </ProfileProvider>
+      </SettingsProvider>
     );
 
     const speedSlider = screen.getByLabelText(/LED Speed/i) as HTMLInputElement;
