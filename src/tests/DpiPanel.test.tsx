@@ -147,6 +147,102 @@ describe('DpiPanel', () => {
     fireEvent.click(minusBtn);
     expect(Number(numInput.value)).toBe(initialVal);
   });
+
+  it('allows free typing in numeric input without eager snapping and commits on blur', () => {
+    render(
+      <ProfileProvider>
+        <DpiPanel />
+      </ProfileProvider>
+    );
+
+    const numInput = screen.getByLabelText(/Stage 1 DPI Input/i) as HTMLInputElement;
+    fireEvent.focus(numInput);
+
+    // Intermediate typing: typing "1", then "12", then "1200"
+    fireEvent.change(numInput, { target: { value: '1' } });
+    expect(numInput.value).toBe('1');
+
+    fireEvent.change(numInput, { target: { value: '12' } });
+    expect(numInput.value).toBe('12');
+
+    fireEvent.change(numInput, { target: { value: '1200' } });
+    expect(numInput.value).toBe('1200');
+
+    // Blur commits the snapped value
+    fireEvent.blur(numInput);
+    expect(numInput.value).toBe('1200');
+
+    // Slider should also reflect the committed 1200
+    const slider1 = screen.getByLabelText(/^Stage 1 DPI$/i) as HTMLInputElement;
+    expect(slider1.value).toBe('1200');
+  });
+
+  it('commits numeric input on Enter key', () => {
+    render(
+      <ProfileProvider>
+        <DpiPanel />
+      </ProfileProvider>
+    );
+
+    const numInput = screen.getByLabelText(/Stage 2 DPI Input/i) as HTMLInputElement;
+    fireEvent.focus(numInput);
+    fireEvent.change(numInput, { target: { value: '3200' } });
+    expect(numInput.value).toBe('3200');
+
+    fireEvent.keyDown(numInput, { key: 'Enter', code: 'Enter' });
+    expect(numInput.value).toBe('3200');
+
+    const slider2 = screen.getByLabelText(/^Stage 2 DPI$/i) as HTMLInputElement;
+    expect(slider2.value).toBe('3200');
+  });
+
+  it('clamps and snaps numeric input on blur according to PAW3370 rules', () => {
+    render(
+      <ProfileProvider>
+        <DpiPanel />
+      </ProfileProvider>
+    );
+
+    const numInput = screen.getByLabelText(/Stage 1 DPI Input/i) as HTMLInputElement;
+
+    // Below min (< 50) snaps to 50
+    fireEvent.focus(numInput);
+    fireEvent.change(numInput, { target: { value: '20' } });
+    fireEvent.blur(numInput);
+    expect(numInput.value).toBe('50');
+
+    // Above max (> 19000) snaps to 19000
+    fireEvent.focus(numInput);
+    fireEvent.change(numInput, { target: { value: '25000' } });
+    fireEvent.blur(numInput);
+    expect(numInput.value).toBe('19000');
+
+    // High DPI snapping (> 10000) snaps to 100-step (e.g. 10150 -> 10200)
+    fireEvent.focus(numInput);
+    fireEvent.change(numInput, { target: { value: '10150' } });
+    fireEvent.blur(numInput);
+    expect(numInput.value).toBe('10200');
+  });
+
+  it('sets dynamic slider step attribute based on current value threshold', () => {
+    render(
+      <ProfileProvider>
+        <DpiPanel />
+      </ProfileProvider>
+    );
+
+    // Stage 1 default is 800 (< 10000) -> step should be 50
+    const slider1 = screen.getByLabelText(/^Stage 1 DPI$/i) as HTMLInputElement;
+    expect(slider1.step).toBe('50');
+
+    // Stage 7 default is 19000 (>= 10000) -> step should be 100
+    const slider7 = screen.getByLabelText(/^Stage 7 DPI$/i) as HTMLInputElement;
+    expect(slider7.step).toBe('100');
+
+    // Change stage 1 to 12000 -> step should dynamically update to 100
+    fireEvent.change(slider1, { target: { value: '12000' } });
+    expect(slider1.step).toBe('100');
+  });
 });
 
 describe('LightingPanel', () => {

@@ -52,6 +52,88 @@ export function stepDpiDown(current: number): number {
   return Math.max(10000, val - 100);
 }
 
+export interface DpiNumericInputProps {
+  value: number;
+  disabled?: boolean;
+  onCommit: (val: number) => void;
+  'aria-label'?: string;
+  className?: string;
+}
+
+export const DpiNumericInput: React.FC<DpiNumericInputProps> = ({
+  value,
+  disabled,
+  onCommit,
+  'aria-label': ariaLabel,
+  className = '',
+}) => {
+  const [prevValue, setPrevValue] = React.useState(value);
+  const [localValue, setLocalValue] = React.useState<string>(String(value));
+  const [isFocused, setIsFocused] = React.useState(false);
+  const lastCommittedRef = React.useRef<number>(value);
+
+  if (value !== prevValue) {
+    setPrevValue(value);
+    lastCommittedRef.current = value;
+    if (!isFocused) {
+      setLocalValue(String(value));
+    }
+  }
+
+  const commit = () => {
+    const trimmed = localValue.trim();
+    if (trimmed === '') {
+      setLocalValue(String(value));
+      return;
+    }
+    const parsed = parseInt(trimmed, 10);
+    const valid = isNaN(parsed) ? value : snapDpi(parsed);
+    setLocalValue(String(valid));
+    setPrevValue(valid);
+    if (valid !== value || valid !== lastCommittedRef.current) {
+      lastCommittedRef.current = valid;
+      onCommit(valid);
+    }
+  };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    setLocalValue(String(value));
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    commit();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      commit();
+      (e.target as HTMLInputElement).blur();
+    } else if (e.key === 'Escape') {
+      setLocalValue(String(value));
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      min="50"
+      max="19000"
+      step={value >= 10000 ? 100 : 50}
+      value={localValue}
+      disabled={disabled}
+      onFocus={handleFocus}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      aria-label={ariaLabel}
+      className={className}
+    />
+  );
+};
+
 export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
   const { activeProfile, updateActiveProfile } = useProfiles();
 
@@ -251,7 +333,7 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
                         type="range"
                         min="50"
                         max="19000"
-                        step="50"
+                        step={stage.x >= 10000 ? 100 : 50}
                         value={stage.x}
                         disabled={!stage.enabled}
                         onChange={(e) => handleDpiChange(idx, Number(e.target.value))}
@@ -270,14 +352,10 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
                           <Minus className="w-3.5 h-3.5" />
                         </button>
 
-                        <input
-                          type="number"
-                          min="50"
-                          max="19000"
-                          step="50"
+                        <DpiNumericInput
                           value={stage.x}
                           disabled={!stage.enabled}
-                          onChange={(e) => handleDpiChange(idx, Number(e.target.value))}
+                          onCommit={(val) => handleDpiChange(idx, val)}
                           aria-label={`Stage ${stageNum} DPI Input`}
                           className="w-20 px-2 py-1 text-center font-mono text-xs rounded bg-base border border-subtle text-white focus:border-brand outline-none disabled:opacity-40"
                         />
@@ -305,7 +383,7 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
                           type="range"
                           min="50"
                           max="19000"
-                          step="50"
+                          step={stage.x >= 10000 ? 100 : 50}
                           value={stage.x}
                           disabled={!stage.enabled}
                           onChange={(e) => handleXDpiChange(idx, Number(e.target.value))}
@@ -322,14 +400,10 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <input
-                            type="number"
-                            min="50"
-                            max="19000"
-                            step="50"
+                          <DpiNumericInput
                             value={stage.x}
                             disabled={!stage.enabled}
-                            onChange={(e) => handleXDpiChange(idx, Number(e.target.value))}
+                            onCommit={(val) => handleXDpiChange(idx, val)}
                             aria-label={`Stage ${stageNum} X DPI Input`}
                             className="w-20 px-2 py-1 text-center font-mono text-xs rounded bg-base border border-subtle text-white focus:border-brand outline-none disabled:opacity-40"
                           />
@@ -354,7 +428,7 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
                           type="range"
                           min="50"
                           max="19000"
-                          step="50"
+                          step={stage.y >= 10000 ? 100 : 50}
                           value={stage.y}
                           disabled={!stage.enabled}
                           onChange={(e) => handleYDpiChange(idx, Number(e.target.value))}
@@ -371,14 +445,10 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <input
-                            type="number"
-                            min="50"
-                            max="19000"
-                            step="50"
+                          <DpiNumericInput
                             value={stage.y}
                             disabled={!stage.enabled}
-                            onChange={(e) => handleYDpiChange(idx, Number(e.target.value))}
+                            onCommit={(val) => handleYDpiChange(idx, val)}
                             aria-label={`Stage ${stageNum} Y DPI Input`}
                             className="w-20 px-2 py-1 text-center font-mono text-xs rounded bg-base border border-subtle text-white focus:border-brand outline-none disabled:opacity-40"
                           />
