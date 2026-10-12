@@ -195,7 +195,7 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
       {/* 7 LED Mode Cards */}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-          Select LED Mode
+          LED Mode / Effect
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {LED_MODES_CONFIG.map((m) => {
