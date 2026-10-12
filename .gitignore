@@ -1,0 +1,6 @@
+node_modules/
+dist/
+docs/superpowers/
+.agents/
+skills-lock.json
+.worktrees/
