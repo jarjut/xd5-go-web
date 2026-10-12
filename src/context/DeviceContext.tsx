@@ -188,25 +188,46 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
     };
   }, []);
 
-  const value: DeviceContextType = {
-    isConnected,
-    device,
-    transport,
-    battery,
-    logs,
-    connect,
-    disconnect,
-    sendHandshake,
-    pollBattery,
-    applyProfileToHardware,
-    readProfileFromHardware,
-    isConnecting,
-    isSyncing,
-    clearLogs,
-    protocol,
-    lastEvent,
-    subscribeDeviceEvent,
-  };
+  const value: DeviceContextType = useMemo(
+    () => ({
+      isConnected,
+      device,
+      transport,
+      battery,
+      logs,
+      connect,
+      disconnect,
+      sendHandshake,
+      pollBattery,
+      applyProfileToHardware,
+      readProfileFromHardware,
+      isConnecting,
+      isSyncing,
+      clearLogs,
+      protocol,
+      lastEvent,
+      subscribeDeviceEvent,
+    }),
+    [
+      isConnected,
+      device,
+      transport,
+      battery,
+      logs,
+      connect,
+      disconnect,
+      sendHandshake,
+      pollBattery,
+      applyProfileToHardware,
+      readProfileFromHardware,
+      isConnecting,
+      isSyncing,
+      clearLogs,
+      protocol,
+      lastEvent,
+      subscribeDeviceEvent,
+    ]
+  );
 
   return <DeviceContext.Provider value={value}>{children}</DeviceContext.Provider>;
 };

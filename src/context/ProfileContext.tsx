@@ -130,7 +130,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({
         });
       }
     });
-  }, [device, activeIndex, profileManager]);
+  }, [device?.subscribeDeviceEvent, activeIndex, profileManager]);
 
   const selectProfile = useCallback(
     (index: number) => {
@@ -293,30 +293,67 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({
     setIsDirty(false);
   }, [device, activeProfile, activeIndex, profileManager]);
 
-  const value: ProfileContextType = {
-    profiles,
-    activeProfile,
-    activeIndex,
-    isDirty,
-    selectProfile,
-    setActiveProfile: selectProfile,
-    updateActiveProfile,
-    addNewProfile,
-    addProfile: addNewProfile,
-    renameActiveProfile,
-    renameProfile: (index: number, name: string) => renameActiveProfile(name, index),
-    deleteActiveProfile,
-    deleteProfile: (index: number) => deleteActiveProfile(index),
-    resetToFactory,
-    resetProfile: (index: number) => resetToFactory(index),
-    exportJson,
-    exportProfileJson: exportJson,
-    importJson,
-    importProfileJson: importJson,
-    applyToDevice,
-    readFromDevice,
-    markClean,
-  };
+  const renameProfile = useCallback(
+    (index: number, name: string) => renameActiveProfile(name, index),
+    [renameActiveProfile]
+  );
+
+  const deleteProfile = useCallback(
+    (index: number) => deleteActiveProfile(index),
+    [deleteActiveProfile]
+  );
+
+  const resetProfile = useCallback(
+    (index: number) => resetToFactory(index),
+    [resetToFactory]
+  );
+
+  const value: ProfileContextType = useMemo(
+    () => ({
+      profiles,
+      activeProfile,
+      activeIndex,
+      isDirty,
+      selectProfile,
+      setActiveProfile: selectProfile,
+      updateActiveProfile,
+      addNewProfile,
+      addProfile: addNewProfile,
+      renameActiveProfile,
+      renameProfile,
+      deleteActiveProfile,
+      deleteProfile,
+      resetToFactory,
+      resetProfile,
+      exportJson,
+      exportProfileJson: exportJson,
+      importJson,
+      importProfileJson: importJson,
+      applyToDevice,
+      readFromDevice,
+      markClean,
+    }),
+    [
+      profiles,
+      activeProfile,
+      activeIndex,
+      isDirty,
+      selectProfile,
+      updateActiveProfile,
+      addNewProfile,
+      renameActiveProfile,
+      renameProfile,
+      deleteActiveProfile,
+      deleteProfile,
+      resetToFactory,
+      resetProfile,
+      exportJson,
+      importJson,
+      applyToDevice,
+      readFromDevice,
+      markClean,
+    ]
+  );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 };

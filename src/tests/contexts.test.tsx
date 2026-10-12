@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
 import { ProfileProvider, useProfiles } from '../context/ProfileContext';
-import { DeviceProvider, useDevice } from '../context/DeviceContext';
+import { DeviceProvider, useDevice, DeviceContext, type DeviceContextType } from '../context/DeviceContext';
 import { XD5Protocol, PID_WIRELESS, PID_WIRED, VID } from '../core/protocol';
-import type { HIDDevice } from '../types/protocol';
+import type { HIDDevice, DeviceEvent } from '../types/protocol';
 
 describe('ProfileContext', () => {
   beforeEach(() => {
@@ -149,6 +149,17 @@ describe('ProfileContext', () => {
     expect(() => {
       renderHook(() => useProfiles());
     }).toThrow(/useProfiles must be used within a ProfileProvider/i);
+  });
+
+  it('memoizes context value to avoid re-renders when state has not changed', () => {
+    const { result, rerender } = renderHook(() => useProfiles(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <ProfileProvider>{children}</ProfileProvider>
+      ),
+    });
+    const firstValue = result.current;
+    rerender();
+    expect(result.current).toBe(firstValue);
   });
 });
 
@@ -374,6 +385,17 @@ describe('DeviceContext', () => {
       renderHook(() => useDevice());
     }).toThrow(/useDevice must be used within a DeviceProvider/i);
   });
+
+  it('memoizes context value to avoid re-renders when state has not changed', () => {
+    const { result, rerender } = renderHook(() => useDevice(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <DeviceProvider>{children}</DeviceProvider>
+      ),
+    });
+    const firstValue = result.current;
+    rerender();
+    expect(result.current).toBe(firstValue);
+  });
 });
 
 describe('Integrated Context Providers', () => {
@@ -436,5 +458,68 @@ describe('Integrated Context Providers', () => {
     });
 
     expect(result.current.activeProfile.activeDpiStage).toBe(4);
+  });
+  it('does not re-register device event listener on packet logs', () => {
+    let subscribeCount = 0;
+    let unsubscribeCount = 0;
+    const stableSubscribe = vi.fn((_listener: (event: DeviceEvent) => void) => {
+      subscribeCount++;
+      return () => {
+        unsubscribeCount++;
+      };
+    });
+
+    const mockDeviceContext: DeviceContextType = {
+      isConnected: true,
+      device: null,
+      transport: 'wireless',
+      battery: null,
+      logs: [],
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      sendHandshake: vi.fn(),
+      pollBattery: vi.fn(),
+      applyProfileToHardware: vi.fn(),
+      readProfileFromHardware: vi.fn(),
+      isConnecting: false,
+      isSyncing: false,
+      clearLogs: vi.fn(),
+      protocol: new XD5Protocol(),
+      lastEvent: null,
+      subscribeDeviceEvent: stableSubscribe,
+    };
+
+    let contextValue = { ...mockDeviceContext };
+    const { rerender } = renderHook(() => useProfiles(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <DeviceContext.Provider value={contextValue}>
+          <ProfileProvider>{children}</ProfileProvider>
+        </DeviceContext.Provider>
+      ),
+    });
+
+    expect(subscribeCount).toBe(1);
+    expect(unsubscribeCount).toBe(0);
+
+    // Simulate DeviceProvider re-render due to new logs (value object changes, but subscribeDeviceEvent is stable)
+    contextValue = {
+      ...mockDeviceContext,
+      logs: [
+        {
+          id: '1',
+          timestamp: new Date().toISOString(),
+          message: 'test log',
+          text: 'test log',
+          type: 'in',
+          direction: 'in',
+        },
+      ],
+    };
+
+    rerender();
+
+    // With dependency narrowed to device?.subscribeDeviceEvent, listener should NOT re-register
+    expect(subscribeCount).toBe(1);
+    expect(unsubscribeCount).toBe(0);
   });
 });
