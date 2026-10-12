@@ -63,6 +63,8 @@ export const POLLING_CODES: Record<number, number> = {
   0x08: 125,
 };
 
+export const STREAMING_SPEED_TABLE = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1] as const;
+export const STREAMING_BRIGHTNESS_TABLE = [72, 92, 112, 132, 152, 172, 192, 212, 232, 252] as const;
 export const SPEED_TABLE = [255, 230, 210, 190, 170, 150, 130, 110, 70, 40] as const;
 export const BRIGHTNESS_TABLE = [45, 50, 75, 100, 125, 150, 175, 200, 225, 255] as const;
 
@@ -265,21 +267,35 @@ export class XD5Protocol {
     const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
     this.log(`RX [Input 0x${reportId.toString(16).padStart(2, '0')}]: ${hex}`, 'in');
 
-    // Command 0x04 Battery response
-    if (bytes[0] === CMD_GET_BATTERY || (bytes.length >= 11 && bytes[1] === CMD_GET_BATTERY)) {
-      const power = bytes[8] !== undefined ? bytes[8] : bytes[9];
-      const charging = bytes[9] !== undefined ? bytes[9] : bytes[10];
+    // Command 0x04 Battery response (OemDrv.exe VA 0x449213 / 0x449218)
+    // Feature/Input payload: byte[0]=0x04, byte[5]=power %, byte[6]=charging (0/1)
+    if (bytes[0] === CMD_GET_BATTERY || (bytes.length >= 7 && bytes[1] === CMD_GET_BATTERY)) {
+      const offset = bytes[0] === CMD_GET_BATTERY ? 0 : 1;
+      const power = bytes[offset + 5];
+      const charging = bytes[offset + 6];
       if (this.onBatteryUpdate && power !== undefined) {
-        this.onBatteryUpdate({ power, charging: !!charging });
+        this.onBatteryUpdate({ power, charging: Boolean(charging) });
       }
     }
 
-    // Command 0x0A Physical DPI Button Event
+    // Command 0x0A Physical Hardware Event (OemDrv.exe VA 0x447700..0x447745)
+    // byte[0]=0x0A, byte[5]=flags (bit 0 = DPI change, bit 1 = profile change)
+    // byte[6]=DPI stage index (0-based / 1-based), byte[7]=profile index
     if (bytes[0] === CMD_DEVICE_EVENT && bytes.length >= 7) {
-      const stage = bytes[5];
-      this.log(`Hardware DPI Button Pressed: Stage ${stage}`, 'in');
-      if (this.onDeviceEvent) {
-        this.onDeviceEvent({ type: 'dpi_change', stage });
+      const flags = bytes[5];
+      if ((flags & 0x01) !== 0) {
+        const stage = bytes[6];
+        this.log(`Hardware DPI Button Pressed: Stage ${stage}`, 'in');
+        if (this.onDeviceEvent) {
+          this.onDeviceEvent({ type: 'dpi_change', stage });
+        }
+      }
+      if ((flags & 0x02) !== 0 && bytes.length >= 8) {
+        const profileIndex = bytes[7] & 0x0f;
+        this.log(`Hardware Profile Button Pressed: Profile ${profileIndex + 1}`, 'in');
+        if (this.onDeviceEvent) {
+          this.onDeviceEvent({ type: 'profile_change', profileIndex });
+        }
       }
     }
   }
@@ -306,7 +322,7 @@ export class XD5Protocol {
   async setHardwareProfile(profileIdx: number): Promise<void> {
     const idx = Math.max(0, Math.min(3, profileIdx));
     this.log(`Setting Hardware Profile index: ${idx} (Cmd 0x10)...`);
-    const pkt = this.buildPacket(CMD_SET_PROFILE, [0, 0, 0, idx, 1]);
+    const pkt = this.buildPacket(CMD_SET_PROFILE, [0, 0, 0, 1, idx]);
     await this.sendFeatureReport(pkt);
     await this.writeEEPROM(EEPROM_ADDR.ACTIVE_PROFILE, [idx]);
   }

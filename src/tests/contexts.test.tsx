@@ -168,6 +168,7 @@ describe('DeviceContext', () => {
     const { result } = renderHook(() => useDevice(), { wrapper });
 
     const testSettings = {
+      profile: 0,
       pollingRate: 500,
       lod: 1,
       debounce: 10,

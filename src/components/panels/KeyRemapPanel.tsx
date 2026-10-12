@@ -7,6 +7,7 @@ import {
   Navigation,
   Sliders,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 
@@ -34,6 +35,8 @@ export const KEY_CATEGORIES: KeyCategory[] = [
       { value: '0x00000201', label: 'Right Click' },
       { value: '0x00000401', label: 'Middle Click' },
       { value: '0x00002001', label: 'Double Click' },
+      { value: '0x00033204', label: 'Three Click' },
+      { value: '0x00003204', label: 'Fire Key (Rapid Fire)' },
     ],
   },
   {
@@ -49,8 +52,30 @@ export const KEY_CATEGORIES: KeyCategory[] = [
       { value: '0x00000302', label: 'DPI Loop' },
       { value: '0x00000102', label: 'DPI +' },
       { value: '0x00000202', label: 'DPI -' },
+      { value: '0x000000ad', label: 'DPI Lock (Sniper)' },
       { value: '0x00000007', label: 'RGB Mode Switch' },
       { value: '0x00000008', label: 'Polling Rate Switch' },
+      { value: '0x00000009', label: 'Profile Switch' },
+      { value: '0x00000000', label: 'Disable Button' },
+    ],
+  },
+  {
+    category: 'Multimedia & Windows',
+    options: [
+      { value: '0x00000010', label: 'Play / Pause' },
+      { value: '0x00000011', label: 'Stop Play' },
+      { value: '0x00000012', label: 'Previous Track' },
+      { value: '0x00000013', label: 'Next Track' },
+      { value: '0x00000014', label: 'Volume Up' },
+      { value: '0x00000015', label: 'Volume Down' },
+      { value: '0x00000016', label: 'Mute' },
+      { value: '0x00000020', label: 'Home Page' },
+      { value: '0x00000021', label: 'Email' },
+      { value: '0x00000022', label: 'Calculator' },
+      { value: '0x00000023', label: 'File Explorer' },
+      { value: '0x00000024', label: 'Search' },
+      { value: '0x00000025', label: 'Refresh' },
+      { value: '0x00000026', label: 'Favorites' },
     ],
   },
 ];
@@ -167,9 +192,21 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
     });
   };
 
+  const hasLeftClick = Object.values(keys).some(
+    (v) => (v || '').toLowerCase() === '0x00000101'
+  );
+
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Header section */}
+      {!hasLeftClick && (
+        <div
+          role="alert"
+          className="p-3 rounded-xl border border-amber-500/50 bg-amber-950/60 text-amber-200 flex items-center gap-3 text-xs font-semibold shadow-lg"
+        >
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>Warning: At least one button must be configured as &quot;Left Click&quot;!</span>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-subtle bg-card/60">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-surface border border-subtle flex items-center justify-center text-cyan shadow-sm">

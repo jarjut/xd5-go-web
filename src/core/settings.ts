@@ -4,6 +4,9 @@ import {
   POLLING_CODES,
   BRIGHTNESS_TABLE,
   SPEED_TABLE,
+  STREAMING_SPEED_TABLE,
+  STREAMING_BRIGHTNESS_TABLE,
+  LED_MODES,
   encodeDpiStage,
   decodeDpiStage,
 } from './protocol';
@@ -37,6 +40,7 @@ export const DEFAULT_LIGHTING: LightingSettings = {
 
 export function createDefaultSettings(): MouseSettings {
   return {
+    profile: 0,
     pollingRate: 1000,
     lod: 1,
     debounce: 12,
@@ -56,7 +60,7 @@ export function serializeSettingsToEEPROM(settings: MouseSettings): Uint8Array {
   const buf = new Uint8Array(181);
 
   buf[EEPROM_ADDR.POLLING_RATE] = POLLING_RATES[settings.pollingRate] || 0x01;
-  buf[EEPROM_ADDR.ACTIVE_PROFILE] = 0x00;
+  buf[EEPROM_ADDR.ACTIVE_PROFILE] = Math.max(0, Math.min(2, settings.profile ?? 0));
   buf[EEPROM_ADDR.STAGE_COUNT] = settings.dpiStages.filter((s) => s.enabled).length || 1;
   buf[EEPROM_ADDR.CURRENT_DPI_IDX] = Math.max(0, Math.min(6, settings.activeDpiStage - 1));
   buf[EEPROM_ADDR.LOD] = settings.lod || 1;
@@ -100,8 +104,13 @@ export function serializeSettingsToEEPROM(settings: MouseSettings): Uint8Array {
   buf[EEPROM_ADDR.LIGHTING + 1] = lr;
   buf[EEPROM_ADDR.LIGHTING + 2] = lg;
   buf[EEPROM_ADDR.LIGHTING + 3] = lb;
-  buf[EEPROM_ADDR.LIGHTING + 4] = SPEED_TABLE[spdIdx];
-  buf[EEPROM_ADDR.LIGHTING + 5] = BRIGHTNESS_TABLE[briIdx];
+  if (led.mode === LED_MODES.STREAMING) {
+    buf[EEPROM_ADDR.LIGHTING + 4] = STREAMING_SPEED_TABLE[spdIdx];
+    buf[EEPROM_ADDR.LIGHTING + 5] = STREAMING_BRIGHTNESS_TABLE[briIdx];
+  } else {
+    buf[EEPROM_ADDR.LIGHTING + 4] = SPEED_TABLE[spdIdx];
+    buf[EEPROM_ADDR.LIGHTING + 5] = BRIGHTNESS_TABLE[briIdx];
+  }
   buf[EEPROM_ADDR.LIGHTING + 6] = 0;
   buf[EEPROM_ADDR.LIGHTING + 7] = 0;
 
@@ -126,6 +135,8 @@ export function deserializeSettingsFromEEPROM(
     lighting: { ...targetSettings.lighting },
     keys: { ...targetSettings.keys },
   };
+
+  result.profile = Math.max(0, Math.min(2, buf[EEPROM_ADDR.ACTIVE_PROFILE] ?? 0));
 
   const pCode = buf[EEPROM_ADDR.POLLING_RATE];
   if (POLLING_CODES[pCode]) {
@@ -186,8 +197,15 @@ export function deserializeSettingsFromEEPROM(
   const spdByte = buf[EEPROM_ADDR.LIGHTING + 4];
   const briByte = buf[EEPROM_ADDR.LIGHTING + 5];
 
-  const spdIdx = (SPEED_TABLE as readonly number[]).indexOf(spdByte);
-  const briIdx = (BRIGHTNESS_TABLE as readonly number[]).indexOf(briByte);
+  let spdIdx = -1;
+  let briIdx = -1;
+  if (mode === LED_MODES.STREAMING) {
+    spdIdx = (STREAMING_SPEED_TABLE as readonly number[]).indexOf(spdByte);
+    briIdx = (STREAMING_BRIGHTNESS_TABLE as readonly number[]).indexOf(briByte);
+  } else {
+    spdIdx = (SPEED_TABLE as readonly number[]).indexOf(spdByte);
+    briIdx = (BRIGHTNESS_TABLE as readonly number[]).indexOf(briByte);
+  }
 
   result.lighting = {
     mode,
@@ -254,4 +272,28 @@ export class SettingsManager {
     this.save();
     return this.settings;
   }
+}
+
+export function exportSettingsToJson(settings: MouseSettings): string {
+  return JSON.stringify(settings, null, 2);
+}
+
+export function importSettingsFromJson(jsonStr: string): MouseSettings {
+  const parsed = JSON.parse(jsonStr);
+  const base = createDefaultSettings();
+  if (!parsed || typeof parsed !== 'object') return base;
+
+  return {
+    ...base,
+    ...parsed,
+    profile: typeof parsed.profile === 'number' ? Math.max(0, Math.min(2, parsed.profile)) : base.profile,
+    dpiStages: Array.isArray(parsed.dpiStages)
+      ? parsed.dpiStages.slice(0, 7).map((st: Partial<DpiStage>, idx: number) => ({
+          ...base.dpiStages[idx],
+          ...st,
+        }))
+      : base.dpiStages,
+    lighting: parsed.lighting ? { ...base.lighting, ...parsed.lighting } : base.lighting,
+    keys: parsed.keys ? { ...base.keys, ...parsed.keys } : base.keys,
+  };
 }

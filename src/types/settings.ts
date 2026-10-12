@@ -23,6 +23,7 @@ export interface KeyBindings {
 }
 
 export interface MouseSettings {
+  profile: number; // 0 = Profile 1, 1 = Profile 2, 2 = Profile 3
   pollingRate: number;
   lod: number;
   debounce: number;

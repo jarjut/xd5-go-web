@@ -130,6 +130,7 @@ describe('Performance and Remapping Panels', () => {
       expect(labels).toContain('Standard Clicks');
       expect(labels).toContain('Navigation');
       expect(labels).toContain('Hardware Loop Functions');
+      expect(labels).toContain('Multimedia & Windows');
     });
 
     it('triggers onHoverButton on mouseEnter and mouseLeave', () => {
@@ -224,6 +225,33 @@ describe('Performance and Remapping Panels', () => {
           key6: '0x00000302',
         },
       });
+    });
+
+    it('shows warning alert when Left Click is missing from all buttons', () => {
+      const noClickSettings = createDefaultSettings();
+      noClickSettings.keys = {
+        key1: '0x00000201', // Right Click instead
+        key2: '0x00000201',
+        key3: '0x00000401',
+        key4: '0x00000801',
+        key5: '0x00001001',
+        key6: '0x00000302',
+      };
+
+      const mockCtx: Partial<SettingsContextType> = {
+        settings: noClickSettings,
+        isDirty: false,
+        updateSettings: vi.fn(),
+      };
+
+      render(
+        <SettingsContext.Provider value={mockCtx as SettingsContextType}>
+          <KeyRemapPanel focusedButton={null} onHoverButton={() => {}} />
+        </SettingsContext.Provider>
+      );
+
+      expect(screen.getByRole('alert')).toBeDefined();
+      expect(screen.getByText(/At least one button must be configured as "Left Click"/i)).toBeDefined();
     });
   });
 

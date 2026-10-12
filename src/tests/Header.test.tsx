@@ -120,6 +120,9 @@ describe('Header component', () => {
       resetToDefaults: vi.fn(),
       applyToDevice: applyMock,
       readFromDevice: readMock,
+      switchProfile: vi.fn(),
+      exportProfileJson: vi.fn(() => '{}'),
+      importProfileJson: vi.fn(() => true),
       markClean: vi.fn(),
     };
 
@@ -194,5 +197,31 @@ describe('Header component', () => {
     expect(screen.getByText(/CONNECTING\.\.\./i)).toBeDefined();
     const connectBtn = screen.getByRole('button', { name: /Connect Mouse/i });
     expect(connectBtn.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('renders hardware profile mode buttons and allows switching profile', () => {
+    render(
+      <DeviceProvider>
+        <SettingsProvider>
+          <Header />
+        </SettingsProvider>
+      </DeviceProvider>
+    );
+
+    const mode1Btn = screen.getByRole('button', { name: /Profile Mode 1/i });
+    const mode2Btn = screen.getByRole('button', { name: /Profile Mode 2/i });
+    const mode3Btn = screen.getByRole('button', { name: /Profile Mode 3/i });
+
+    expect(mode1Btn).toBeDefined();
+    expect(mode2Btn).toBeDefined();
+    expect(mode3Btn).toBeDefined();
+    expect(mode1Btn.getAttribute('data-active')).toBe('true');
+
+    fireEvent.click(mode2Btn);
+    expect(mode2Btn.getAttribute('data-active')).toBe('true');
+    expect(mode1Btn.getAttribute('data-active')).toBe('false');
+
+    expect(screen.getByRole('button', { name: /Export Profile/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Import Profile/i })).toBeDefined();
   });
 });

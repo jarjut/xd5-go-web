@@ -23,7 +23,10 @@ import {
   LED_MODES,
   SPEED_TABLE,
   BRIGHTNESS_TABLE,
+  STREAMING_SPEED_TABLE,
+  STREAMING_BRIGHTNESS_TABLE,
 } from '../core/protocol';
+import type { DeviceEvent } from '../types/protocol';
 
 describe('XD5Protocol reverse-engineering verification', () => {
   it('correctly calculates 17-byte packet checksum summing to 0x55 mod 256', () => {
@@ -151,6 +154,8 @@ describe('XD5Protocol reverse-engineering verification', () => {
     expect(POLLING_CODES[0x01]).toBe(1000);
     expect(SPEED_TABLE.length).toBe(10);
     expect(BRIGHTNESS_TABLE.length).toBe(10);
+    expect(STREAMING_SPEED_TABLE.length).toBe(10);
+    expect(STREAMING_BRIGHTNESS_TABLE.length).toBe(10);
     expect(LED_MODES.STREAMING).toBe(0);
     expect(LED_MODES.OFF).toBe(4);
   });
@@ -166,5 +171,52 @@ describe('XD5Protocol reverse-engineering verification', () => {
     for (let i = 0; i < 17; i++) sum = (sum + buf[i]) & 0xFF;
     expect(sum).toBe(0x55);
     expect(calculateChecksum(buf)).toBe(proto.calcChecksum(buf));
+  });
+
+  it('parses battery response at payload index 5 and 6 according to OEM driver specification', () => {
+    const proto = new XD5Protocol();
+    let receivedBattery: { power: number; charging: boolean } | null = null;
+    proto.onBatteryUpdate = (b) => {
+      receivedBattery = b;
+    };
+
+    // 16-byte payload without report ID: byte[0]=0x04 (cmd), byte[5]=85 (85%), byte[6]=1 (charging)
+    const payload = new Uint8Array(16);
+    payload[0] = CMD_GET_BATTERY;
+    payload[5] = 85;
+    payload[6] = 1;
+
+    proto.handleInputReport({
+      reportId: 0x08,
+      data: new DataView(payload.buffer),
+    });
+
+    expect(receivedBattery).toEqual({ power: 85, charging: true });
+  });
+
+  it('dispatches physical hardware events for both DPI and Profile switches', () => {
+    const proto = new XD5Protocol();
+    const events: DeviceEvent[] = [];
+    proto.onDeviceEvent = (evt) => {
+      events.push(evt);
+    };
+
+    // CMD 0x0A with flags & 1 (DPI event, stage 3)
+    const dpiPkt = new Uint8Array(16);
+    dpiPkt[0] = CMD_DEVICE_EVENT;
+    dpiPkt[5] = 0x01; // flags: DPI changed
+    dpiPkt[6] = 3;    // stage 3
+    proto.handleInputReport({ reportId: 0x08, data: new DataView(dpiPkt.buffer) });
+
+    expect(events).toContainEqual({ type: 'dpi_change', stage: 3 });
+
+    // CMD 0x0A with flags & 2 (Profile event, profile 2)
+    const profPkt = new Uint8Array(16);
+    profPkt[0] = CMD_DEVICE_EVENT;
+    profPkt[5] = 0x02; // flags: Profile changed
+    profPkt[7] = 1;    // profile index 1 (Mode 2)
+    proto.handleInputReport({ reportId: 0x08, data: new DataView(profPkt.buffer) });
+
+    expect(events).toContainEqual({ type: 'profile_change', profileIndex: 1 });
   });
 });

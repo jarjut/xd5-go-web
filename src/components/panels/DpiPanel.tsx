@@ -227,6 +227,17 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
           </div>
         </div>
 
+        <div className="flex items-center gap-3">
+          {/* Active Cycle Counter Badge */}
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-subtle text-xs font-mono"
+            title={`${enabledCount} stages included in hardware DPI cycle loop`}
+          >
+            <span className="text-slate-400">DPI Cycle:</span>
+            <span className="font-bold text-brand">{enabledCount} / 7</span>
+            <span className="text-slate-500 text-[10px]">Stages</span>
+          </div>
+
         {/* Separate X & Y DPI Toggle */}
         <label className="inline-flex items-center gap-2.5 cursor-pointer select-none text-xs font-semibold text-slate-300 hover:text-white px-3 py-1.5 rounded-lg bg-card border border-subtle transition-colors">
           <input
@@ -240,6 +251,7 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
           <Split className="w-3.5 h-3.5 text-slate-400" />
           <span>Separate X & Y DPI</span>
         </label>
+        </div>
       </div>
 
       {/* 7 Stage Rows */}

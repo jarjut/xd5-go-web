@@ -8,6 +8,8 @@ import {
   Check,
   Usb,
   Wifi,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -31,8 +33,15 @@ export const Header: React.FC<HeaderProps> = ({
     isSyncing,
   } = useDevice();
 
-  const { isDirty, applyToDevice, readFromDevice } = useSettings();
-
+  const {
+    settings,
+    isDirty,
+    applyToDevice,
+    readFromDevice,
+    switchProfile,
+    exportProfileJson,
+    importProfileJson,
+  } = useSettings();
   const handleConnectToggle = async () => {
     if (isConnected) {
       disconnect();
@@ -65,6 +74,36 @@ export const Header: React.FC<HeaderProps> = ({
 
   const batteryLevel = battery && typeof battery.power === 'number' ? battery.power : null;
   const isCharging = battery && typeof battery.charging === 'boolean' ? battery.charging : false;
+
+  const currentProfile = settings?.profile ?? 0;
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleExportProfile = () => {
+    const json = exportProfileJson();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `xd5_profile_${currentProfile + 1}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        importProfileJson(content);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   return (
     <header className={`w-full bg-surface border-b border-subtle flex flex-col ${className}`}>
@@ -246,6 +285,66 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
           </button>
+        </div>
+      </div>
+
+      {/* Secondary Sub-bar: Onboard Hardware Profiles (Mode 1 / Mode 2 / Mode 3) & JSON Backup */}
+      <div className="flex flex-wrap items-center justify-between px-4 lg:px-6 py-1.5 bg-base/50 border-t border-subtle/50 text-xs gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-mono text-slate-400 font-semibold tracking-wider uppercase">
+            Hardware Profile:
+          </span>
+          <div className="flex items-center gap-1 bg-surface p-0.5 rounded-lg border border-subtle">
+            {[0, 1, 2].map((idx) => {
+              const isActive = currentProfile === idx;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  role="button"
+                  aria-label={`Profile Mode ${idx + 1}`}
+                  data-active={isActive ? 'true' : 'false'}
+                  onClick={() => switchProfile(idx)}
+                  className={`px-2.5 py-1 rounded-md font-mono text-xs font-semibold transition-all cursor-pointer select-none ${
+                    isActive
+                      ? 'bg-brand text-white shadow-sm shadow-brand/40'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-hover'
+                  }`}
+                >
+                  Mode {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleExportProfile}
+            title="Export current profile as JSON"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-surface hover:bg-hover text-slate-300 hover:text-white border border-subtle transition-colors cursor-pointer"
+          >
+            <Download className="w-3 h-3 text-cyan" />
+            <span>Export Profile</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            title="Import profile from JSON file"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-surface hover:bg-hover text-slate-300 hover:text-white border border-subtle transition-colors cursor-pointer"
+          >
+            <Upload className="w-3 h-3 text-cyan" />
+            <span>Import Profile</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleFileChange}
+          />
         </div>
       </div>
 

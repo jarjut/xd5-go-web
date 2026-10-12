@@ -10,6 +10,9 @@ export interface SettingsContextType {
   resetToDefaults: () => void;
   applyToDevice: () => Promise<void>;
   readFromDevice: () => Promise<void>;
+  switchProfile: (profileIdx: number) => Promise<void>;
+  exportProfileJson: () => string;
+  importProfileJson: (jsonStr: string) => boolean;
   markClean: () => void;
 }
 
@@ -39,6 +42,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
           if (prev.activeDpiStage === nextStage) return prev;
           const next = { ...prev, activeDpiStage: nextStage };
           settingsManager.updateSettings({ activeDpiStage: nextStage });
+          return next;
+        });
+      } else if (event.type === 'profile_change' && typeof event.profileIndex === 'number') {
+        const nextProfile = event.profileIndex;
+        setSettings((prev) => {
+          if (prev.profile === nextProfile) return prev;
+          const next = { ...prev, profile: nextProfile };
+          settingsManager.updateSettings({ profile: nextProfile });
           return next;
         });
       }
@@ -93,6 +104,39 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
     }
   }, [device, settings, settingsManager]);
 
+  const switchProfile = useCallback(
+    async (profileIdx: number) => {
+      const validIdx = Math.max(0, Math.min(2, profileIdx));
+      updateSettings({ profile: validIdx });
+      if (device?.protocol?.isConnected) {
+        try {
+          await device.protocol.setHardwareProfile(validIdx);
+        } catch (err: unknown) {
+          console.error('Failed to set hardware profile:', err);
+        }
+      }
+    },
+    [device, updateSettings]
+  );
+
+  const exportProfileJson = useCallback((): string => {
+    return JSON.stringify(settings, null, 2);
+  }, [settings]);
+
+  const importProfileJson = useCallback(
+    (jsonStr: string): boolean => {
+      try {
+        const parsed = JSON.parse(jsonStr);
+        if (!parsed || typeof parsed !== 'object') return false;
+        updateSettings(parsed);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [updateSettings]
+  );
+
   const value: SettingsContextType = useMemo(
     () => ({
       settings,
@@ -101,9 +145,23 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
       resetToDefaults,
       applyToDevice,
       readFromDevice,
+      switchProfile,
+      exportProfileJson,
+      importProfileJson,
       markClean,
     }),
-    [settings, isDirty, updateSettings, resetToDefaults, applyToDevice, readFromDevice, markClean]
+    [
+      settings,
+      isDirty,
+      updateSettings,
+      resetToDefaults,
+      applyToDevice,
+      readFromDevice,
+      switchProfile,
+      exportProfileJson,
+      importProfileJson,
+      markClean,
+    ]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
