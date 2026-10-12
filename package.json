@@ -1,0 +1,19 @@
+{
+  "name": "xd5-go-web",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Fantech Helios Go XD5 Dedicated WebHID Mouse Configurator",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -l 3000 ."
+  },
+  "keywords": [
+    "fantech",
+    "helios-go-xd5",
+    "webhid",
+    "mouse-configurator",
+    "reverse-engineering"
+  ],
+  "author": "Fajar",
+  "license": "MIT"
+}
