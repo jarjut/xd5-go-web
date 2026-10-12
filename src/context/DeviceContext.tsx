@@ -217,8 +217,6 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
       disconnect,
       applySettingsToHardware,
       readSettingsFromHardware,
-      applyProfileToHardware: applySettingsToHardware as any,
-      readProfileFromHardware: readSettingsFromHardware,
       isConnecting,
       isSyncing,
       clearLogs,

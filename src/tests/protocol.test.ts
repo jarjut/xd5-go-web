@@ -24,7 +24,6 @@ import {
   SPEED_TABLE,
   BRIGHTNESS_TABLE,
 } from '../core/protocol';
-import { ProfileManager } from '../core/profiles';
 
 describe('XD5Protocol reverse-engineering verification', () => {
   it('correctly calculates 17-byte packet checksum summing to 0x55 mod 256', () => {
@@ -43,24 +42,22 @@ describe('XD5Protocol reverse-engineering verification', () => {
   });
 
   it('correctly converts low DPI range (<= 10,000) using 50-DPI steps', () => {
-    const pm = new ProfileManager();
-    const res800 = pm.dpiToRaw(800);
+    const res800 = encodeDpi(800);
     expect(res800.raw).toBe(15); // (800/50)-1 = 15
     expect(res800.mul).toBe(0);
-    expect(pm.rawToDpi(15, 0)).toBe(800);
+    expect(decodeDpi(15, 0)).toBe(800);
 
-    const res1600 = pm.dpiToRaw(1600);
+    const res1600 = encodeDpi(1600);
     expect(res1600.raw).toBe(31);
     expect(res1600.mul).toBe(0);
-    expect(pm.rawToDpi(31, 0)).toBe(1600);
+    expect(decodeDpi(31, 0)).toBe(1600);
   });
 
   it('correctly converts high DPI range (> 10,000) using 100-DPI steps', () => {
-    const pm = new ProfileManager();
-    const res16000 = pm.dpiToRaw(16000);
+    const res16000 = encodeDpi(16000);
     expect(res16000.raw).toBe(159); // (16000/100)-1 = 159
     expect(res16000.mul).toBe(2);
-    expect(pm.rawToDpi(159, 2)).toBe(16000);
+    expect(decodeDpi(159, 2)).toBe(16000);
   });
 
   it('verifies PAW3370 edge cases and clamping in encodeDpi / decodeDpi', () => {
