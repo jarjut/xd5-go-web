@@ -52,8 +52,11 @@ export const TabNav: React.FC<TabNavProps> = ({
             <button
               key={tab.id}
               type="button"
+              role="tab"
               id={`tab-${tab.id}`}
-              aria-pressed={isActive}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`panel-${tab.id}`}
+              tabIndex={activeTab === tab.id ? 0 : -1}
               data-active={isActive ? 'true' : 'false'}
               onClick={() => onTabChange(tab.id)}
               className={`group relative flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand cursor-pointer select-none ${

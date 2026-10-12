@@ -86,12 +86,20 @@ export const ProfileBar: React.FC<ProfileBarProps> = ({ className = '' }) => {
   };
 
   const handleRenameClick = () => {
+    if (!isRenaming) {
+      setRenameValue(activeProfile?.name || '');
+    }
     setIsRenaming((prev) => !prev);
   };
-  const handleSaveRename = (e?: React.FormEvent) => {
+
+  const handleRenameSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (renameValue.trim()) {
-      renameActiveProfile(renameValue.trim());
+    const trimmed = renameValue.trim();
+    if (trimmed) {
+      renameActiveProfile(trimmed);
+      setRenameValue(trimmed);
+    } else {
+      setRenameValue(activeProfile?.name || '');
     }
     setIsRenaming(false);
   };
@@ -166,7 +174,7 @@ export const ProfileBar: React.FC<ProfileBarProps> = ({ className = '' }) => {
       <div className="flex items-center gap-3">
         {/* Profile Dropdown or Inline Rename */}
         {isRenaming ? (
-          <form onSubmit={handleSaveRename} className="flex items-center gap-1.5">
+          <form onSubmit={handleRenameSubmit} className="flex items-center gap-1.5">
             <input
               type="text"
               aria-label="Rename Profile Input"

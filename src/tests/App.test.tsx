@@ -41,14 +41,28 @@ describe('App root integration', () => {
     }
   });
 
-  it('renders dual-pane shell and switches tabs correctly', () => {
+  it('renders dual-pane shell and switches tabs correctly with WAI-ARIA semantics', () => {
     render(<App />);
 
     expect(screen.getByText('DPI Settings')).toBeDefined();
     expect(screen.getByText('Lighting (RGB)')).toBeDefined();
 
-    const lightingTab = screen.getByRole('button', { name: /Lighting \(RGB\)/i });
+    const dpiTab = screen.getByRole('tab', { name: /DPI Settings/i });
+    expect(dpiTab.getAttribute('aria-selected')).toBe('true');
+    expect(dpiTab.getAttribute('aria-controls')).toBe('panel-dpi');
+    expect(dpiTab.getAttribute('tabindex')).toBe('0');
+
+    const panel = screen.getByRole('tabpanel');
+    expect(panel.id).toBe('panel-dpi');
+    expect(panel.getAttribute('aria-labelledby')).toBe('tab-dpi');
+
+    const lightingTab = screen.getByRole('tab', { name: /Lighting \(RGB\)/i });
+    expect(lightingTab.getAttribute('aria-selected')).toBe('false');
+    expect(lightingTab.getAttribute('tabindex')).toBe('-1');
+
     fireEvent.click(lightingTab);
+    expect(lightingTab.getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tabpanel').id).toBe('panel-lighting');
     expect(screen.getByText(/LED Mode \/ Effect/i)).toBeDefined();
   });
 
@@ -60,19 +74,19 @@ describe('App root integration', () => {
     expect(screen.getByText('Separate X & Y DPI')).toBeDefined();
 
     // Tab 2: Lighting (RGB)
-    fireEvent.click(screen.getByRole('button', { name: /Lighting \(RGB\)/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Lighting \(RGB\)/i }));
     expect(screen.getByText(/LED Mode \/ Effect/i)).toBeDefined();
 
     // Tab 3: Key Remapping
-    fireEvent.click(screen.getByRole('button', { name: /Key Remapping/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Key Remapping/i }));
     expect(screen.getByTestId('key-remap-card-1')).toBeDefined();
 
     // Tab 4: Sensor & Performance
-    fireEvent.click(screen.getByRole('button', { name: /Sensor & Performance/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Sensor & Performance/i }));
     expect(screen.getByText(/Polling Rate/i)).toBeDefined();
 
     // Tab 5: Protocol & Diagnostics
-    fireEvent.click(screen.getByRole('button', { name: /Protocol & Diagnostics/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Protocol & Diagnostics/i }));
     expect(screen.getByText(/Live Protocol Console/i)).toBeDefined();
   });
 

@@ -582,6 +582,57 @@ describe('ProfileBar component', () => {
 
     expect(renameMock).toHaveBeenCalledWith('Tournament Pro');
   });
+  it('trims whitespace on rename submit and reverts if empty', () => {
+    const renameMock = vi.fn();
+    const mockProfileContext: ProfileContextType = {
+      profiles: dummyProfiles,
+      activeProfile: dummyProfiles[0],
+      activeIndex: 0,
+      isDirty: false,
+      selectProfile: vi.fn(),
+      setActiveProfile: vi.fn(),
+      updateActiveProfile: vi.fn(),
+      addNewProfile: vi.fn(),
+      addProfile: vi.fn(),
+      renameActiveProfile: renameMock,
+      renameProfile: renameMock,
+      deleteActiveProfile: vi.fn(),
+      deleteProfile: vi.fn(),
+      resetToFactory: vi.fn(),
+      resetProfile: vi.fn(),
+      exportJson: vi.fn(),
+      exportProfileJson: vi.fn(),
+      importJson: vi.fn(),
+      importProfileJson: vi.fn(),
+      applyToDevice: vi.fn(),
+      readFromDevice: vi.fn(),
+      markClean: vi.fn(),
+    };
+
+    render(
+      <ProfileContext.Provider value={mockProfileContext}>
+        <ProfileBar />
+      </ProfileContext.Provider>
+    );
+
+    // 1. Whitespace-only submission reverts and does not call renameActiveProfile
+    fireEvent.click(screen.getByRole('button', { name: /Rename Profile/i }));
+    const renameInput = screen.getByLabelText(/Rename Profile Input/i);
+    fireEvent.change(renameInput, { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: /Confirm Rename/i }));
+
+    expect(renameMock).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/Rename Profile Input/i)).toBeNull();
+
+    // 2. Re-open rename, submit with surrounding spaces -> trimmed
+    fireEvent.click(screen.getByRole('button', { name: /Rename Profile/i }));
+    const reopenInput = screen.getByLabelText(/Rename Profile Input/i) as HTMLInputElement;
+    expect(reopenInput.value).toBe(dummyProfiles[0].name);
+
+    fireEvent.change(reopenInput, { target: { value: '  Trimmed Pro  ' } });
+    fireEvent.click(screen.getByRole('button', { name: /Confirm Rename/i }));
+    expect(renameMock).toHaveBeenCalledWith('Trimmed Pro');
+  });
   it('cancels inline rename on Escape key press', () => {
     const renameMock = vi.fn();
     const mockProfileContext: ProfileContextType = {
