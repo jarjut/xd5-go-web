@@ -1,10 +1,11 @@
 import React, { useContext, useState } from 'react';
 import { Gauge } from 'lucide-react';
-import { ProfileContext } from '../../context/ProfileContext';
+import { SettingsContext } from '../../context/SettingsContext';
 import { DeviceContext } from '../../context/DeviceContext';
 import { MouseSvg } from './MouseSvg';
 import { HotspotPin } from './HotspotPin';
-import type { Profile } from '../../types/profile';
+import type { MouseSettings } from '../../types/settings';
+import { createDefaultSettings } from '../../core/settings';
 
 export interface MouseStageProps {
   activeZone?: number | null;
@@ -14,40 +15,7 @@ export interface MouseStageProps {
   className?: string;
 }
 
-const FALLBACK_PROFILE: Profile = {
-  id: 1,
-  name: 'Default Profile',
-  profileColor: '#00e5ff',
-  pollingRate: 1000,
-  lod: 1,
-  debounce: 12,
-  sleepMin: 10,
-  ripple: false,
-  angleSnap: false,
-  turnOffOnMove: true,
-  activeDpiStage: 1,
-  separateXY: false,
-  dpiStages: [
-    { enabled: true, x: 800, y: 800, color: '#ff334b' },
-    { enabled: true, x: 1600, y: 1600, color: '#00e5ff' },
-    { enabled: true, x: 3200, y: 3200, color: '#00ff66' },
-    { enabled: true, x: 6400, y: 6400, color: '#ffff00' },
-  ],
-  lighting: {
-    mode: 0,
-    color: '#00e5ff',
-    brightness: 8,
-    speed: 5,
-  },
-  keys: {
-    key1: 'Left Click',
-    key2: 'Right Click',
-    key3: 'Middle Click',
-    key4: 'Backward',
-    key5: 'Forward',
-    key6: 'DPI Loop',
-  },
-};
+const FALLBACK_SETTINGS: MouseSettings = createDefaultSettings();
 
 const BUTTON_CONFIG = [
   { id: 1, label: 'Left Click', defaultAction: 'Left Click', x: 37.5, y: 18.0 },
@@ -65,14 +33,14 @@ export const MouseStage: React.FC<MouseStageProps> = ({
   onHoverButton,
   className = '',
 }) => {
-  const profileCtx = useContext(ProfileContext);
+  const settingsCtx = useContext(SettingsContext);
   const deviceCtx = useContext(DeviceContext);
 
   const [localHovered, setLocalHovered] = useState<number | null>(null);
 
-  const activeProfile = profileCtx?.activeProfile ?? FALLBACK_PROFILE;
+  const settings = settingsCtx?.settings ?? FALLBACK_SETTINGS;
   const currentActive = activeZone ?? hoveredButton ?? localHovered ?? null;
-  const accentColor = activeProfile.profileColor || '#00e5ff';
+  const accentColor = settings.lighting?.color || '#00e5ff';
 
   const handleHover = (id: number | null) => {
     setLocalHovered(id);
@@ -80,14 +48,14 @@ export const MouseStage: React.FC<MouseStageProps> = ({
   };
 
   // Compute ambient glow properties
-  const isLightingOff = activeProfile.lighting?.mode === 4;
-  const lightingMode = activeProfile.lighting?.mode ?? 0;
-  const brightness = typeof activeProfile.lighting?.brightness === 'number'
-    ? activeProfile.lighting.brightness
+  const isLightingOff = settings.lighting?.mode === 4;
+  const lightingMode = settings.lighting?.mode ?? 0;
+  const brightness = typeof settings.lighting?.brightness === 'number'
+    ? settings.lighting.brightness
     : 8;
   const briRatio = Math.max(0, Math.min(10, brightness)) / 10;
   const glowOpacity = isLightingOff ? 0 : Math.max(0.1, briRatio * 0.45);
-  const glowColor = activeProfile.lighting?.color || accentColor;
+  const glowColor = settings.lighting?.color || accentColor;
 
   const ambientGlowBackground = isLightingOff
     ? 'transparent'
@@ -96,13 +64,13 @@ export const MouseStage: React.FC<MouseStageProps> = ({
     : `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`;
 
   // Compute active DPI stage readout info
-  const activeStageIdx = activeProfile.activeDpiStage || 1;
+  const activeStageIdx = settings.activeDpiStage || 1;
   const currentDpiStage =
-    activeProfile.dpiStages?.[activeStageIdx - 1] ??
-    activeProfile.dpiStages?.[0] ??
-    FALLBACK_PROFILE.dpiStages[0];
+    settings.dpiStages?.[activeStageIdx - 1] ??
+    settings.dpiStages?.[0] ??
+    FALLBACK_SETTINGS.dpiStages[0];
 
-  const dpiText = activeProfile.separateXY
+  const dpiText = settings.separateXY
     ? `${currentDpiStage.x} × ${currentDpiStage.y} DPI`
     : `${currentDpiStage.x} DPI`;
 
@@ -126,8 +94,7 @@ export const MouseStage: React.FC<MouseStageProps> = ({
         {/* Vector SVG Mouse Chassis */}
         <MouseSvg
           activeButton={currentActive}
-          lighting={activeProfile.lighting}
-          profileColor={accentColor}
+          lighting={settings.lighting}
           onSelectButton={onSelectButton}
           onHoverButton={handleHover}
           className="w-full h-full drop-shadow-[0_10px_25px_rgba(0,0,0,0.6)]"
@@ -135,7 +102,7 @@ export const MouseStage: React.FC<MouseStageProps> = ({
 
         {/* 6 Interactive Hotspot Pins */}
         {BUTTON_CONFIG.map((btn) => {
-          const sublabel = activeProfile.keys?.[`key${btn.id}`] || btn.defaultAction;
+          const sublabel = settings.keys?.[`key${btn.id}`] || btn.defaultAction;
           return (
             <HotspotPin
               key={btn.id}

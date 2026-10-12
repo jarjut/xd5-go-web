@@ -186,8 +186,8 @@ export function deserializeSettingsFromEEPROM(
   const spdByte = buf[EEPROM_ADDR.LIGHTING + 4];
   const briByte = buf[EEPROM_ADDR.LIGHTING + 5];
 
-  const spdIdx = SPEED_TABLE.indexOf(spdByte);
-  const briIdx = BRIGHTNESS_TABLE.indexOf(briByte);
+  const spdIdx = (SPEED_TABLE as readonly number[]).indexOf(spdByte);
+  const briIdx = (BRIGHTNESS_TABLE as readonly number[]).indexOf(briByte);
 
   result.lighting = {
     mode,

@@ -1,10 +1,9 @@
 import React from 'react';
-import type { LightingSettings } from '../../types/profile';
+import type { LightingSettings } from '../../types/settings';
 
 export interface MouseSvgProps {
   activeButton: number | null;
   lighting?: LightingSettings;
-  profileColor?: string;
   onSelectButton?: (id: number) => void;
   onHoverButton?: (id: number | null) => void;
   className?: string;
@@ -13,14 +12,13 @@ export interface MouseSvgProps {
 export const MouseSvg: React.FC<MouseSvgProps> = ({
   activeButton,
   lighting,
-  profileColor = '#00e5ff',
   onSelectButton,
   onHoverButton,
   className = 'w-full h-auto',
 }) => {
-  const accentColor = profileColor || '#00e5ff';
   const isOff = lighting?.mode === 4;
-  const color = lighting?.color || accentColor;
+  const accentColor = lighting?.color || '#00e5ff';
+  const color = accentColor;
   const brightness = typeof lighting?.brightness === 'number' ? lighting.brightness : 8;
   const speed = typeof lighting?.speed === 'number' ? lighting.speed : 5;
 

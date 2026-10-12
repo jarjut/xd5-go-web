@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
 import { SettingsProvider, useSettings } from '../context/SettingsContext';
-import { DeviceProvider, useDevice, DeviceContext } from '../context/DeviceContext';
+import { DeviceProvider, useDevice } from '../context/DeviceContext';
 import { XD5Protocol, PID_WIRELESS, PID_WIRED, VID } from '../core/protocol';
 import type { HIDDevice } from '../types/protocol';
 

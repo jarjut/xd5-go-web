@@ -1,18 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MouseStage } from '../components/stage/MouseStage';
-import { ProfileProvider } from '../context/ProfileContext';
+import { SettingsProvider } from '../context/SettingsContext';
 import { DeviceProvider } from '../context/DeviceContext';
-import { ProfileManager } from '../core/profiles';
+import { SettingsManager } from '../core/settings';
 
 describe('MouseStage', () => {
   it('renders interactive button pins and triggers selection', () => {
     const onSelect = vi.fn();
     render(
       <DeviceProvider>
-        <ProfileProvider>
+        <SettingsProvider>
           <MouseStage hoveredButton={null} onSelectButton={onSelect} />
-        </ProfileProvider>
+        </SettingsProvider>
       </DeviceProvider>
     );
 
@@ -26,9 +26,9 @@ describe('MouseStage', () => {
     const onSelect = vi.fn();
     render(
       <DeviceProvider>
-        <ProfileProvider>
+        <SettingsProvider>
           <MouseStage activeZone={null} onSelectButton={onSelect} />
-        </ProfileProvider>
+        </SettingsProvider>
       </DeviceProvider>
     );
 
@@ -43,9 +43,9 @@ describe('MouseStage', () => {
   it('supports activeZone and hoveredButton props for bi-directional highlighting', () => {
     const { rerender } = render(
       <DeviceProvider>
-        <ProfileProvider>
+        <SettingsProvider>
           <MouseStage activeZone={3} onSelectButton={() => {}} />
-        </ProfileProvider>
+        </SettingsProvider>
       </DeviceProvider>
     );
 
@@ -55,9 +55,9 @@ describe('MouseStage', () => {
     // Also support hoveredButton prop
     rerender(
       <DeviceProvider>
-        <ProfileProvider>
+        <SettingsProvider>
           <MouseStage hoveredButton={4} onSelectButton={() => {}} />
-        </ProfileProvider>
+        </SettingsProvider>
       </DeviceProvider>
     );
 
@@ -69,9 +69,9 @@ describe('MouseStage', () => {
     const onHover = vi.fn();
     render(
       <DeviceProvider>
-        <ProfileProvider>
+        <SettingsProvider>
           <MouseStage onHoverButton={onHover} />
-        </ProfileProvider>
+        </SettingsProvider>
       </DeviceProvider>
     );
 
@@ -94,9 +94,9 @@ describe('MouseStage', () => {
     const onSelect = vi.fn();
     render(
       <DeviceProvider>
-        <ProfileProvider>
+        <SettingsProvider>
           <MouseStage onSelectButton={onSelect} />
-        </ProfileProvider>
+        </SettingsProvider>
       </DeviceProvider>
     );
 
@@ -110,20 +110,21 @@ describe('MouseStage', () => {
   });
 
   it('renders LED diffuser strip and reactive ambient glow based on lighting settings', () => {
-    const pm = new ProfileManager();
-    const customProfile = pm.getActiveProfile();
-    customProfile.lighting = {
-      mode: 1, // Breathing
-      color: '#ff0055',
-      brightness: 9,
-      speed: 6,
-    };
+    const sm = new SettingsManager();
+    sm.updateSettings({
+      lighting: {
+        mode: 1, // Breathing
+        color: '#ff0055',
+        brightness: 9,
+        speed: 6,
+      },
+    });
 
     render(
       <DeviceProvider>
-        <ProfileProvider manager={pm}>
+        <SettingsProvider manager={sm}>
           <MouseStage />
-        </ProfileProvider>
+        </SettingsProvider>
       </DeviceProvider>
     );
 
@@ -135,16 +136,20 @@ describe('MouseStage', () => {
   });
 
   it('renders active DPI stage readout badge underneath mouse', () => {
-    const pm = new ProfileManager();
-    const profile = pm.getActiveProfile();
-    profile.activeDpiStage = 1;
-    profile.dpiStages[0] = { enabled: true, x: 800, y: 800, color: '#ff334b' };
+    const sm = new SettingsManager();
+    sm.updateSettings({
+      activeDpiStage: 1,
+      dpiStages: [
+        { enabled: true, x: 800, y: 800, color: '#ff334b' },
+        ...sm.getSettings().dpiStages.slice(1),
+      ],
+    });
 
     render(
       <DeviceProvider>
-        <ProfileProvider manager={pm}>
+        <SettingsProvider manager={sm}>
           <MouseStage />
-        </ProfileProvider>
+        </SettingsProvider>
       </DeviceProvider>
     );
 
@@ -162,16 +167,20 @@ describe('MouseStage', () => {
   });
   it('renders all 7 lighting modes correctly without error', () => {
     const modes = [0, 1, 2, 3, 4, 5, 7]; // Streaming, Breathing, Steady, Neon, OFF, Scrolling, Colorful Breathing
-    const pm = new ProfileManager();
-    const profile = pm.getActiveProfile();
+    const sm = new SettingsManager();
 
     for (const mode of modes) {
-      profile.lighting.mode = mode;
+      sm.updateSettings({
+        lighting: {
+          ...sm.getSettings().lighting,
+          mode,
+        },
+      });
       const { unmount } = render(
         <DeviceProvider>
-          <ProfileProvider manager={pm}>
+          <SettingsProvider manager={sm}>
             <MouseStage />
-          </ProfileProvider>
+          </SettingsProvider>
         </DeviceProvider>
       );
       expect(screen.getByTestId('mouse-led-strip')).toBeDefined();
@@ -181,17 +190,20 @@ describe('MouseStage', () => {
   });
 
   it('renders separate XY DPI readout when separateXY is enabled', () => {
-    const pm = new ProfileManager();
-    const profile = pm.getActiveProfile();
-    profile.separateXY = true;
-    profile.activeDpiStage = 2;
-    profile.dpiStages[1] = { enabled: true, x: 1200, y: 1600, color: '#00e5ff' };
+    const sm = new SettingsManager();
+    const stages = [...sm.getSettings().dpiStages];
+    stages[1] = { enabled: true, x: 1200, y: 1600, color: '#00e5ff' };
+    sm.updateSettings({
+      separateXY: true,
+      activeDpiStage: 2,
+      dpiStages: stages,
+    });
 
     render(
       <DeviceProvider>
-        <ProfileProvider manager={pm}>
+        <SettingsProvider manager={sm}>
           <MouseStage />
-        </ProfileProvider>
+        </SettingsProvider>
       </DeviceProvider>
     );
 

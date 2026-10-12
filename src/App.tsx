@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, Cpu } from 'lucide-react';
 import { DeviceProvider } from './context/DeviceContext';
-import { ProfileProvider } from './context/ProfileContext';
+import { SettingsProvider } from './context/SettingsContext';
 import { Header } from './components/layout/Header';
 import { TabNav, type TabId } from './components/layout/TabNav';
 import { MouseStage } from './components/stage/MouseStage';
@@ -47,8 +47,8 @@ function WorkbenchShell() {
         </div>
       )}
 
-      {/* Global Header with integrated Profile Toolbar */}
-      <Header showProfileBar={true} />
+      {/* Global Header */}
+      <Header />
 
       {/* Main Studio Workbench (Responsive Dual-Pane) */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-6 items-start">
@@ -121,9 +121,9 @@ function WorkbenchShell() {
 export default function App() {
   return (
     <DeviceProvider>
-      <ProfileProvider>
+      <SettingsProvider>
         <WorkbenchShell />
-      </ProfileProvider>
+      </SettingsProvider>
     </DeviceProvider>
   );
 }
