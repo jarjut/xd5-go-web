@@ -1,4 +1,4 @@
-import React, { useContext, useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Terminal,
   Cpu,
@@ -8,8 +8,8 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { DeviceContext } from '../../context/DeviceContext';
-import type { LogEntry } from '../../types/protocol';
+import { useDevice } from '../../context/DeviceContext';
+import type { TimerHandle } from '../../types/protocol';
 
 export interface DiagnosticsPanelProps {
   className?: string;
@@ -31,24 +31,28 @@ Packet Spec: 17 Bytes Feature Reports (Report ID: 0x08, Checksum: sum mod 256 = 
 Profile Management: Persistent in LocalStorage & Synchronized with Hardware Command 0x10.`;
 
 export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ className = '' }) => {
-  const deviceCtx = useContext(DeviceContext);
-
-  const logs: LogEntry[] = deviceCtx?.logs ?? [];
-  const isConnected = Boolean(deviceCtx?.isConnected);
-  const transport = deviceCtx?.transport ?? 'disconnected';
-  const battery = deviceCtx?.battery ?? null;
-  const isSyncing = Boolean(deviceCtx?.isSyncing);
+  const {
+    logs = [],
+    isConnected = false,
+    transport = 'disconnected',
+    battery = null,
+    isSyncing = false,
+    sendHandshake,
+    pollBattery,
+    clearLogs,
+  } = useDevice();
 
   const [copied, setCopied] = useState(false);
   const [isPinging, setIsPinging] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const consoleBottomRef = useRef<HTMLDivElement>(null);
+  const copyTimeoutRef = useRef<TimerHandle | undefined>(undefined);
 
   const handlePingHandshake = async () => {
-    if (!deviceCtx?.sendHandshake) return;
+    if (!sendHandshake) return;
     setIsPinging(true);
     try {
-      await deviceCtx.sendHandshake(true);
+      await sendHandshake(true);
     } catch {
       // errors handled by protocol logger
     } finally {
@@ -57,10 +61,10 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ className = 
   };
 
   const handlePollBattery = async () => {
-    if (!deviceCtx?.pollBattery) return;
+    if (!pollBattery) return;
     setIsPolling(true);
     try {
-      await deviceCtx.pollBattery();
+      await pollBattery();
     } catch {
       // errors handled by protocol logger
     } finally {
@@ -69,7 +73,7 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ className = 
   };
 
   const handleClearLogs = () => {
-    deviceCtx?.clearLogs?.();
+    clearLogs?.();
   };
 
   const handleCopyLogs = async () => {
@@ -83,11 +87,20 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ className = 
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+      }, 2000);
     } catch {
       // clipboard write failed
     }
   };
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof consoleBottomRef.current?.scrollIntoView === 'function') {
@@ -197,7 +210,7 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ className = 
                 </span>
 
                 <span
-                  className={`px-1.5 py-0.2 rounded border text-[10px] font-bold shrink-0 tracking-wider ${badgeBg}`}
+                  className={`px-1.5 py-0.5 rounded border text-[10px] font-bold shrink-0 tracking-wider ${badgeBg}`}
                 >
                   {badgeText}
                 </span>

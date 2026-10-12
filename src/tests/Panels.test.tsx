@@ -189,6 +189,44 @@ describe('Performance and Remapping Panels', () => {
         }),
       });
     });
+
+    it('resets key mappings to defaults when Reset to Default button is clicked', () => {
+      const updateActiveProfile = vi.fn();
+      const mockProfileContext: Partial<ProfileContextType> = {
+        activeProfile: {
+          ...createDefaultProfile(0, 'Custom Profile'),
+          keys: {
+            key1: '0x00000201',
+            key2: '0x00000101',
+            key3: '0x00000401',
+            key4: '0x00001001',
+            key5: '0x00000801',
+            key6: '0x00000007',
+          },
+        },
+        updateActiveProfile,
+      };
+
+      render(
+        <ProfileContext.Provider value={mockProfileContext as ProfileContextType}>
+          <KeyRemapPanel focusedButton={null} onHoverButton={() => {}} />
+        </ProfileContext.Provider>
+      );
+
+      const resetBtn = screen.getByRole('button', { name: /Reset to Default/i });
+      fireEvent.click(resetBtn);
+
+      expect(updateActiveProfile).toHaveBeenCalledWith({
+        keys: {
+          key1: '0x00000101',
+          key2: '0x00000201',
+          key3: '0x00000401',
+          key4: '0x00000801',
+          key5: '0x00001001',
+          key6: '0x00000302',
+        },
+      });
+    });
   });
 
   describe('DiagnosticsPanel', () => {
@@ -271,6 +309,27 @@ describe('Performance and Remapping Panels', () => {
       const clearBtn = screen.getByRole('button', { name: /Clear Log/i });
       fireEvent.click(clearBtn);
       expect(clearLogs).toHaveBeenCalled();
+    });
+
+    it('copies log stream to clipboard and cleans up unmount timer safely', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, {
+        clipboard: { writeText },
+      });
+
+      const { unmount } = render(
+        <DeviceProvider>
+          <DiagnosticsPanel />
+        </DeviceProvider>
+      );
+
+      const copyBtn = screen.getByRole('button', { name: /Copy Log/i });
+      await act(async () => {
+        fireEvent.click(copyBtn);
+      });
+
+      expect(writeText).toHaveBeenCalled();
+      unmount();
     });
   });
 });
