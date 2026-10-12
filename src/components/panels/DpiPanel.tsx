@@ -218,11 +218,11 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
             <Target className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-display font-bold text-lg text-white tracking-wide uppercase">
-              DPI Studio
+            <h2 className="panel-heading">
+              DPI
             </h2>
             <p className="text-xs text-slate-400">
-              PAW3370 Optical Sensor · 50 – 19,000 DPI (50-DPI steps ≤ 10K, 100-DPI steps &gt; 10K)
+              Adjust pointer speed. Choose the stages used by your DPI button.
             </p>
           </div>
         </div>
@@ -231,9 +231,9 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
           {/* Active Cycle Counter Badge */}
           <div
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-subtle text-xs font-mono"
-            title={`${enabledCount} stages included in hardware DPI cycle loop`}
+            title={`${enabledCount} stages enabled`}
           >
-            <span className="text-slate-400">DPI Cycle:</span>
+            <span className="text-slate-400">Enabled:</span>
             <span className="font-bold text-brand">{enabledCount} / 7</span>
             <span className="text-slate-500 text-[10px]">Stages</span>
           </div>
@@ -267,11 +267,11 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
               data-testid={`dpi-stage-row-${stageNum}`}
               className={`p-3.5 rounded-xl border transition-all ${
                 isActive
-                  ? 'border-brand/70 bg-card/90 shadow-[0_0_15px_rgba(255,51,75,0.12)]'
+                  ? 'border-brand/70 bg-card/90'
                   : 'border-subtle bg-card/40 hover:bg-card/70'
               } ${!stage.enabled ? 'opacity-50' : ''}`}
             >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-col items-stretch justify-between gap-4">
                 {/* Stage Controls: Active Radio, Enable Checkbox, Stage Number & Color Swatch */}
                 <div className="flex items-center gap-3">
                   {/* Active Stage Radio */}

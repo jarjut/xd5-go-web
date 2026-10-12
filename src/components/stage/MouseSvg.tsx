@@ -1,315 +1,47 @@
-import React from 'react';
+import React, { useId } from 'react';
 import type { LightingSettings } from '../../types/settings';
+export interface MouseSvgProps { activeButton: number | null; lighting?: LightingSettings; onSelectButton?: (id:number)=>void; onHoverButton?: (id:number|null)=>void; className?:string; }
 
-export interface MouseSvgProps {
-  activeButton: number | null;
-  lighting?: LightingSettings;
-  onSelectButton?: (id: number) => void;
-  onHoverButton?: (id: number | null) => void;
-  className?: string;
-}
-
-export const MouseSvg: React.FC<MouseSvgProps> = ({
-  activeButton,
-  lighting,
-  onSelectButton,
-  onHoverButton,
-  className = 'w-full h-auto',
-}) => {
-  const isOff = lighting?.mode === 4;
-  const accentColor = lighting?.color || '#00e5ff';
-  const color = accentColor;
-  const brightness = typeof lighting?.brightness === 'number' ? lighting.brightness : 8;
-  const speed = typeof lighting?.speed === 'number' ? lighting.speed : 5;
-
-  const briRatio = Math.max(0, Math.min(10, brightness)) / 10;
-  const targetOpacity = isOff ? 0.08 : Math.max(0.2, briRatio * 0.95);
-  const duration = Math.max(0.6, (11 - Math.max(1, Math.min(10, speed))) * 0.45);
-
-  // Compute LED strip inline styles & animation based on active lighting mode
-  const getLedStripStyle = (): React.CSSProperties => {
-    if (isOff) {
-      return {
-        fill: '#1a1c23',
-        opacity: 0.08,
-        filter: 'none',
-        transition: 'fill 0.3s, opacity 0.3s',
-      };
-    }
-
-    switch (lighting?.mode) {
-      case 0: // Streaming (RGB Spectrum Wave)
-        return {
-          fill: 'url(#spectrumWaveGrad)',
-          opacity: targetOpacity,
-          animation: `led-hue-cycle ${duration}s linear infinite`,
-          filter: 'url(#diffuserGlow)',
-        };
-      case 1: // Breathing (Single Color Pulse)
-        return {
-          fill: color,
-          animation: `led-breathing ${duration}s ease-in-out infinite`,
-          filter: 'url(#diffuserGlow)',
-        };
-      case 2: // Steady (Static Color)
-        return {
-          fill: color,
-          opacity: targetOpacity,
-          filter: 'url(#diffuserGlow)',
-          transition: 'fill 0.3s, opacity 0.3s',
-        };
-      case 3: // Neon (Color Cycle)
-        return {
-          fill: color,
-          opacity: targetOpacity,
-          animation: `led-hue-cycle ${duration}s linear infinite`,
-          filter: 'url(#diffuserGlow)',
-        };
-      case 5: // Scrolling
-        return {
-          fill: 'url(#spectrumWaveGrad)',
-          opacity: targetOpacity,
-          animation: `led-scrolling ${duration}s ease-in-out infinite`,
-          filter: 'url(#diffuserGlow)',
-        };
-      case 7: // Colorful Breathing
-        return {
-          fill: 'url(#spectrumWaveGrad)',
-          animation: `led-colorful-breathing ${duration}s ease-in-out infinite`,
-          filter: 'url(#diffuserGlow)',
-        };
-      default:
-        return {
-          fill: color,
-          opacity: targetOpacity,
-          filter: 'url(#diffuserGlow)',
-        };
-    }
-  };
-
-  const isBtn1Active = activeButton === 1;
-  const isBtn2Active = activeButton === 2;
-  const isBtn3Active = activeButton === 3;
-  const isBtn4Active = activeButton === 4;
-  const isBtn5Active = activeButton === 5;
-  const isBtn6Active = activeButton === 6;
-
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 320 500"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      role="img"
-      aria-label="Fantech Helios Go XD5 Mouse Chassis"
-    >
-      <defs>
-        <linearGradient id="bodyGrad" x1="160" y1="20" x2="160" y2="480" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#2c303c" />
-          <stop offset="60%" stopColor="#1b1c23" />
-          <stop offset="100%" stopColor="#121318" />
-        </linearGradient>
-
-        <linearGradient id="clickerGrad" x1="160" y1="20" x2="160" y2="230" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#343947" />
-          <stop offset="100%" stopColor="#1e2029" />
-        </linearGradient>
-
-        <linearGradient id="clickerGradActive" x1="160" y1="20" x2="160" y2="230" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#464d60" />
-          <stop offset="100%" stopColor="#282b37" />
-        </linearGradient>
-
-        <linearGradient id="spectrumWaveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#ff0055" />
-          <stop offset="20%" stopColor="#ff9900" />
-          <stop offset="40%" stopColor="#ffe600" />
-          <stop offset="60%" stopColor="#00e5ff" />
-          <stop offset="80%" stopColor="#7b2cbf" />
-          <stop offset="100%" stopColor="#ff0055" />
-        </linearGradient>
-
-        <filter id="diffuserGlow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="8" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-      </defs>
-
-      <style>{`
-        @keyframes led-breathing {
-          0%, 100% { opacity: 0.15; }
-          50% { opacity: ${targetOpacity}; }
-        }
-        @keyframes led-hue-cycle {
-          0% { filter: url(#diffuserGlow) hue-rotate(0deg); }
-          100% { filter: url(#diffuserGlow) hue-rotate(360deg); }
-        }
-        @keyframes led-scrolling {
-          0% { opacity: 0.3; transform-origin: 160px 440px; transform: scaleX(0.85); }
-          50% { opacity: ${targetOpacity}; transform-origin: 160px 440px; transform: scaleX(1); }
-          100% { opacity: 0.3; transform-origin: 160px 440px; transform: scaleX(0.85); }
-        }
-        @keyframes led-colorful-breathing {
-          0%, 100% { opacity: 0.15; filter: url(#diffuserGlow) hue-rotate(0deg); }
-          50% { opacity: ${targetOpacity}; filter: url(#diffuserGlow) hue-rotate(180deg); }
-        }
-      `}</style>
-
-      {/* Main Outer Mouse Body Ergonomic Shape */}
-      <path
-        d="M160 25 C115 25 80 80 75 160 C70 240 65 340 90 410 C110 460 145 475 160 475 C175 475 210 460 230 410 C255 340 250 240 245 160 C240 80 205 25 160 25 Z"
-        fill="url(#bodyGrad)"
-        stroke="#3e4352"
-        strokeWidth="2.5"
-      />
-
-      {/* Button 1: Left Click */}
-      <path
-        id="btnSvg1"
-        data-testid="mouse-btn-1"
-        d="M157 26 C125 27 92 68 83 150 C100 155 140 156 157 156 Z"
-        fill={isBtn1Active ? 'url(#clickerGradActive)' : 'url(#clickerGrad)'}
-        stroke={isBtn1Active ? accentColor : '#3a3e4e'}
-        strokeWidth={isBtn1Active ? 2.5 : 1.5}
-        onClick={() => onSelectButton?.(1)}
-        onMouseEnter={() => onHoverButton?.(1)}
-        onMouseLeave={() => onHoverButton?.(null)}
-        style={{
-          cursor: 'pointer',
-          transition: 'fill 0.2s, stroke 0.2s',
-          filter: isBtn1Active ? `drop-shadow(0 0 6px ${accentColor}80)` : undefined,
-        }}
-      />
-
-      {/* Button 2: Right Click */}
-      <path
-        id="btnSvg2"
-        data-testid="mouse-btn-2"
-        d="M163 26 C195 27 228 68 237 150 C220 155 180 156 163 156 Z"
-        fill={isBtn2Active ? 'url(#clickerGradActive)' : 'url(#clickerGrad)'}
-        stroke={isBtn2Active ? accentColor : '#3a3e4e'}
-        strokeWidth={isBtn2Active ? 2.5 : 1.5}
-        onClick={() => onSelectButton?.(2)}
-        onMouseEnter={() => onHoverButton?.(2)}
-        onMouseLeave={() => onHoverButton?.(null)}
-        style={{
-          cursor: 'pointer',
-          transition: 'fill 0.2s, stroke 0.2s',
-          filter: isBtn2Active ? `drop-shadow(0 0 6px ${accentColor}80)` : undefined,
-        }}
-      />
-
-      {/* Center Scroll Wheel Well */}
-      <rect
-        x="150"
-        y="60"
-        width="20"
-        height="60"
-        rx="10"
-        fill="#0d0e12"
-        stroke="#252833"
-        strokeWidth="1.5"
-      />
-
-      {/* Button 3: Scroll Wheel */}
-      <rect
-        id="btnSvg3"
-        data-testid="mouse-btn-3"
-        x="153"
-        y="70"
-        width="14"
-        height="40"
-        rx="7"
-        fill={isBtn3Active ? accentColor : '#1b1d24'}
-        stroke={isBtn3Active ? '#ffffff' : accentColor}
-        strokeWidth={isBtn3Active ? 2.5 : 2}
-        onClick={() => onSelectButton?.(3)}
-        onMouseEnter={() => onHoverButton?.(3)}
-        onMouseLeave={() => onHoverButton?.(null)}
-        style={{
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          filter: isBtn3Active ? `drop-shadow(0 0 8px ${accentColor})` : undefined,
-        }}
-      />
-
-      {/* Scroll Wheel Ribs */}
-      <line x1="155" y1="80" x2="165" y2="80" stroke={isBtn3Active ? '#ffffff' : '#444'} strokeWidth="1.5" />
-      <line x1="155" y1="90" x2="165" y2="90" stroke={isBtn3Active ? '#ffffff' : '#444'} strokeWidth="1.5" />
-      <line x1="155" y1="100" x2="165" y2="100" stroke={isBtn3Active ? '#ffffff' : '#444'} strokeWidth="1.5" />
-
-      {/* Button 6: DPI Switch */}
-      <rect
-        id="btnSvg6"
-        data-testid="mouse-btn-6"
-        x="154"
-        y="170"
-        width="12"
-        height="24"
-        rx="4"
-        fill={isBtn6Active ? accentColor : '#252833'}
-        stroke={isBtn6Active ? '#ffffff' : '#4a5063'}
-        strokeWidth={isBtn6Active ? 2 : 1}
-        onClick={() => onSelectButton?.(6)}
-        onMouseEnter={() => onHoverButton?.(6)}
-        onMouseLeave={() => onHoverButton?.(null)}
-        style={{
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          filter: isBtn6Active ? `drop-shadow(0 0 8px ${accentColor})` : undefined,
-        }}
-      />
-
-      {/* Button 4: Left Side (Back) */}
-      <path
-        id="btnSvg4"
-        data-testid="mouse-btn-4"
-        d="M72 230 C71 215 71 200 73 185 C67 190 64 210 65 230 Z"
-        fill={isBtn4Active ? accentColor : '#333745'}
-        stroke={isBtn4Active ? '#ffffff' : '#4a5063'}
-        strokeWidth={isBtn4Active ? 2 : 1}
-        onClick={() => onSelectButton?.(4)}
-        onMouseEnter={() => onHoverButton?.(4)}
-        onMouseLeave={() => onHoverButton?.(null)}
-        style={{
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          filter: isBtn4Active ? `drop-shadow(0 0 8px ${accentColor})` : undefined,
-        }}
-      />
-
-      {/* Button 5: Left Side (Forward) */}
-      <path
-        id="btnSvg5"
-        data-testid="mouse-btn-5"
-        d="M72 275 C70 260 70 245 72 235 C65 238 63 255 64 275 Z"
-        fill={isBtn5Active ? accentColor : '#333745'}
-        stroke={isBtn5Active ? '#ffffff' : '#4a5063'}
-        strokeWidth={isBtn5Active ? 2 : 1}
-        onClick={() => onSelectButton?.(5)}
-        onMouseEnter={() => onHoverButton?.(5)}
-        onMouseLeave={() => onHoverButton?.(null)}
-        style={{
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          filter: isBtn5Active ? `drop-shadow(0 0 8px ${accentColor})` : undefined,
-        }}
-      />
-
-      {/* Tail Ergonomic LED Diffuser Strip */}
-      <path
-        id="mouseLedStrip"
-        data-testid="mouse-led-strip"
-        d="M102 430 C125 460 195 460 218 430 C200 452 120 452 102 430 Z"
-        style={getLedStripStyle()}
-      />
-
-      {/* Subtle Fantech Helios Palm Logo */}
-      <path
-        d="M160 330 L166 342 L178 343 L169 351 L172 363 L160 356 L148 363 L151 351 L142 343 L154 342 Z"
-        fill="#3a3e4e"
-        opacity="0.6"
-      />
-    </svg>
-  );
+export const MouseSvg: React.FC<MouseSvgProps> = ({ activeButton, lighting, onSelectButton, onHoverButton, className = '' }) => {
+  const uid = useId().replace(/:/g,'');
+  const off = lighting?.mode === 4;
+  const mode = lighting?.mode ?? 0;
+  const color = lighting?.color ?? '#e64b5e';
+  const opacity = off ? 0 : (lighting?.brightness ?? 8) / 10;
+  const duration = `${(11 - (lighting?.speed ?? 5)) * .45}s`;
+  const multicolor = [0,3,5,7].includes(mode);
+  const zones = [
+    { id:1, d:'M157 34 C119 31 75 32 58 55 C45 86 49 143 61 202 C90 188 117 184 146 185 L157 145 Z' },
+    { id:2, d:'M169 34 C205 34 251 47 264 70 C275 100 261 149 259 213 C232 198 198 189 172 186 L169 145 Z' },
+    { id:3, d:'M153 67 Q166 59 179 70 L177 119 Q166 130 154 119 Z' },
+    { id:4, d:'M49 151 L55 181 L49 186 L42 157 Z' },
+    { id:5, d:'M55 188 L60 215 L53 222 L48 192 Z' },
+    { id:6, d:'M161 160 Q167 155 173 160 L173 190 Q166 195 161 190 Z' },
+  ];
+  return <svg viewBox="0 0 320 500" className={className} aria-label="Fantech Helios Go XD5 mouse" role="img">
+    <defs>
+      <linearGradient id={`${uid}-body`} x1="0" x2="1" y2=".6"><stop stopColor="#16191d"/><stop offset=".24" stopColor="#41464b"/><stop offset=".5" stopColor="#17191d"/><stop offset=".85" stopColor="#101215"/><stop offset="1" stopColor="#353a40"/></linearGradient>
+      <linearGradient id={`${uid}-left`} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#747b82"/><stop offset=".55" stopColor="#3a4047"/><stop offset="1" stopColor="#22262c"/></linearGradient>
+      <linearGradient id={`${uid}-right`} x1="0" x2="1" y2="1"><stop stopColor="#646b72"/><stop offset="1" stopColor="#24282e"/></linearGradient>
+      <linearGradient id={`${uid}-rgb`}><stop stopColor="#e95829"/><stop offset=".25" stopColor="#ec315e"/><stop offset=".55" stopColor="#8457e6"/><stop offset=".8" stopColor="#2fa7e2"/><stop offset="1" stopColor="#2dd492"/></linearGradient>
+      <filter id={`${uid}-glow`} x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+    </defs>
+    <ellipse cx="163" cy="455" rx="112" ry="20" fill="#000" opacity=".18"/>
+    <path d="M56 386 C44 442 94 474 161 477 C225 479 280 448 271 389" fill="none" stroke={multicolor ? `url(#${uid}-rgb)` : color} strokeWidth="15" filter={`url(#${uid}-glow)`} opacity={opacity} data-testid="ambient-glow"/>
+    <path d="M57 55 C74 30 126 29 166 33 C204 32 254 44 267 70 C281 104 262 162 264 218 C264 280 281 348 276 397 C274 445 235 472 170 475 C103 479 58 451 51 410 C43 369 63 303 63 255 C62 207 46 156 47 112 C44 86 46 68 57 55 Z" fill={`url(#${uid}-body)`} stroke="#0b0d10" strokeWidth="3"/>
+    <path d={zones[0].d} fill={`url(#${uid}-left)`} stroke="#14171a" strokeWidth="2"/>
+    <path d={zones[1].d} fill={`url(#${uid}-right)`} stroke="#14171a" strokeWidth="2"/>
+    <path d="M157 34 L157 130 Q164 150 173 137 L177 35" fill="#292e34" stroke="#101317" strokeWidth="2"/>
+    <rect x="154" y="67" width="24" height="58" rx="12" fill="#090b0d" stroke="#50555a" strokeWidth="2"/>
+    {[76,85,94,103,112].map(y => <path key={y} d={`M157 ${y} Q166 ${y-3} 175 ${y}`} fill="none" stroke="#51565c" strokeWidth="3"/>)}
+    <path d="M61 202 Q154 165 259 213" fill="none" stroke="#080a0d" strokeWidth="3"/>
+    <path d="M259 215 C253 260 244 292 242 326 Q243 348 264 363" fill="none" stroke="#0d1013" strokeWidth="2"/>
+    <path d="M55 77 C49 111 56 153 63 178 M58 326 C47 372 51 411 69 433" fill="none" stroke="#b0b7bf" strokeWidth="2" opacity=".15"/>
+    <path d={zones[3].d} fill="#33383e" stroke="#080a0c" strokeWidth="2"/>
+    <path d={zones[4].d} fill="#33383e" stroke="#080a0c" strokeWidth="2"/>
+    <path d={zones[5].d} fill="#1c2025" stroke="#080a0c" strokeWidth="2"/>
+    <path d="M63 427 Q91 470 168 471 Q242 469 267 426" fill="none" stroke={off ? '#20252b' : multicolor ? `url(#${uid}-rgb)` : color} strokeWidth="3" opacity={off ? 1 : opacity} data-testid="mouse-led-strip" style={{ animation:off || mode === 2 ? 'none' : mode === 1 || mode === 7 ? `led-breathe ${duration} ease-in-out infinite` : `led-cycle ${duration} linear infinite` }}/>
+    <path d="M151 450 L161 450 L161 458 L166 461 L166 450 L177 450 M155 454 L158 457 M172 454 L170 457" stroke="#646a72" strokeWidth="2" fill="none"/>
+    {zones.map(zone => <path key={zone.id} data-testid={`mouse-btn-${zone.id}`} d={zone.d} fill={activeButton === zone.id ? color : 'transparent'} opacity={activeButton === zone.id ? .2 : 1} onClick={() => onSelectButton?.(zone.id)} onMouseEnter={() => onHoverButton?.(zone.id)} onMouseLeave={() => onHoverButton?.(null)} style={{cursor:'pointer'}}/>)}
+  </svg>;
 };

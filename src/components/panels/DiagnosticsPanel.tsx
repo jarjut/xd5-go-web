@@ -120,10 +120,10 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ className = 
             </div>
             <div>
               <h3 className="font-display font-bold text-base text-white tracking-wide">
-                Live Protocol Console & Evidence Inspector
+                Device log
               </h3>
               <p className="text-xs text-slate-400">
-                Bidirectional 17-byte HID Feature Report transaction stream
+                Messages sent to and received from your mouse.
               </p>
             </div>
           </div>
@@ -137,7 +137,7 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ className = 
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-subtle bg-card hover:bg-hover hover:border-slate-500 text-slate-200 hover:text-white transition-all text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
             >
               <Zap className={`w-3.5 h-3.5 text-cyan ${isPinging ? 'animate-pulse' : ''}`} />
-              <span>Ping Handshake (0x02)</span>
+              <span>Check connection</span>
             </button>
 
             <button
@@ -147,7 +147,7 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ className = 
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-subtle bg-card hover:bg-hover hover:border-slate-500 text-slate-200 hover:text-white transition-all text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
             >
               <Battery className={`w-3.5 h-3.5 text-cyan ${isPolling ? 'animate-pulse' : ''}`} />
-              <span>Poll Battery (0x04)</span>
+              <span>Check battery</span>
             </button>
 
             <button

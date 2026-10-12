@@ -29,49 +29,49 @@ export const LED_MODES_CONFIG: readonly LedModeItem[] = [
   {
     id: 0,
     name: 'Streaming',
-    description: 'Dynamic rainbow spectrum wave across diffuser strip',
+    description: 'Moving rainbow colors',
     supportsColor: false,
     Icon: Waves,
   },
   {
     id: 1,
     name: 'Breathing',
-    description: 'Smooth pulsing glow with customizable static color',
+    description: 'One color fades in and out',
     supportsColor: true,
     Icon: Activity,
   },
   {
     id: 2,
     name: 'Steady',
-    description: 'Solid continuous lighting with user-defined color',
+    description: 'One color stays on',
     supportsColor: true,
     Icon: Sun,
   },
   {
     id: 3,
     name: 'Neon',
-    description: 'Rapid spectrum cycle transitioning between vivid hues',
+    description: 'Colors change one after another',
     supportsColor: false,
     Icon: Sparkles,
   },
   {
     id: 5,
     name: 'Scrolling',
-    description: 'Flowing linear gradient effect across diffuser zones',
+    description: 'Colors move along the light strip',
     supportsColor: false,
     Icon: RotateCw,
   },
   {
     id: 7,
     name: 'Colorful Breathing',
-    description: 'Pulsing multi-color breath effect through spectrum',
+    description: 'Rainbow colors fade in and out',
     supportsColor: false,
     Icon: Flame,
   },
   {
     id: 4,
     name: 'OFF',
-    description: 'Disable diffuser LEDs entirely to preserve battery life',
+    description: 'Turn off the lights to save battery',
     supportsColor: false,
     Icon: PowerOff,
   },
@@ -167,10 +167,10 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
           </div>
           <div>
             <h2 className="font-display font-bold text-lg text-white tracking-wide uppercase">
-              Lighting FX
+              Lights
             </h2>
             <p className="text-xs text-slate-400">
-              Chassis rear diffuser RGB illumination · 7 hardware EEPROM effects
+              Choose a light effect for your mouse.
             </p>
           </div>
         </div>
@@ -237,10 +237,10 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="font-display font-semibold text-sm text-white">
-                Custom LED Color
+                Light color
               </h3>
               <p className="text-xs text-slate-400">
-                Single-color illumination for {activeMode.name} mode
+                Choose a color for {activeMode.name}.
               </p>
             </div>
           </div>

@@ -43,10 +43,10 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
         </div>
         <div>
           <h3 className="font-display font-bold text-base text-white tracking-wide">
-            Hardware Performance Parameters
+            Sensor
           </h3>
           <p className="text-xs text-slate-400">
-            Fine-tune PixArt PAW3370 sensor parameters and power saving modes
+            Adjust tracking, click response and power saving.
           </p>
         </div>
       </div>
@@ -58,7 +58,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <h4 className="font-display font-semibold text-sm text-slate-200">
-                USB Polling Rate (EEPROM 0x00)
+                Polling rate
               </h4>
               <span className="font-mono text-xs text-cyan font-bold">
                 Active: {pollingRate} Hz
@@ -81,7 +81,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                   aria-label={`${opt.label} Polling Rate`}
                   className={`py-2 px-1 rounded-lg font-display text-xs font-semibold transition-all border cursor-pointer text-center select-none ${
                     isActive
-                      ? 'bg-cyan/20 border-cyan text-cyan shadow-[0_0_12px_rgba(0,229,255,0.2)]'
+                      ? 'bg-cyan/10 border-cyan text-cyan'
                       : 'bg-surface border-subtle text-slate-300 hover:text-white hover:border-slate-500'
                   }`}
                 >
@@ -100,7 +100,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <h4 className="font-display font-semibold text-sm text-slate-200">
-                Lift-Off Distance - LOD (EEPROM 0x0A)
+                Lift-off distance
               </h4>
               <span className="font-mono text-xs text-cyan font-bold">
                 {lod === 1 ? 'Low Cutoff' : 'High Cutoff'}
@@ -123,7 +123,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                   aria-label={`${opt.label} LOD`}
                   className={`py-2 px-3 rounded-lg font-display text-xs font-semibold transition-all border cursor-pointer text-center select-none ${
                     isActive
-                      ? 'bg-cyan/20 border-cyan text-cyan shadow-[0_0_12px_rgba(0,229,255,0.2)]'
+                      ? 'bg-cyan/10 border-cyan text-cyan'
                       : 'bg-surface border-subtle text-slate-300 hover:text-white hover:border-slate-500'
                   }`}
                 >
@@ -145,10 +145,10 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                 htmlFor="debounce-slider"
                 className="font-display font-semibold text-sm text-slate-200 block"
               >
-                Debounce Time (EEPROM 0xA9)
+                Debounce time
               </label>
               <p className="text-xs text-slate-400 mt-0.5">
-                Switch contact debounce filter delay (prevents accidental double clicks)
+                Filters unwanted extra clicks.
               </p>
             </div>
             <span className="font-mono text-sm text-cyan font-bold px-2 py-0.5 rounded bg-surface border border-subtle shrink-0 ml-3">
@@ -184,10 +184,10 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                 htmlFor="sleep-slider"
                 className="font-display font-semibold text-sm text-slate-200 block"
               >
-                Auto-Sleep Timer (EEPROM 0xAD)
+                Sleep after
               </label>
               <p className="text-xs text-slate-400 mt-0.5">
-                Idle inactivity timeout before entering battery power saving sleep mode
+                Time without movement before the mouse sleeps.
               </p>
             </div>
             <span className="font-mono text-sm text-cyan font-bold px-2 py-0.5 rounded bg-surface border border-subtle shrink-0 ml-3">
@@ -234,7 +234,7 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                   htmlFor="sensor-toggle-ripple"
                   className="font-display font-semibold text-sm text-slate-200 cursor-pointer block"
                 >
-                  Ripple Control (EEPROM 0xB1)
+                  Ripple control
                 </label>
                 <p className="text-xs text-slate-400">
                   Smooths jitter at high DPI (10,000+ DPI)
@@ -266,10 +266,10 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                   htmlFor="sensor-toggle-anglesnap"
                   className="font-display font-semibold text-sm text-slate-200 cursor-pointer block"
                 >
-                  Angle Snapping / FixLine (EEPROM 0xAF)
+                  Angle snapping
                 </label>
                 <p className="text-xs text-slate-400">
-                  Hardware angle snapping prediction for straight cursor lines
+                  Helps the pointer move in straight lines.
                 </p>
               </div>
             </div>
@@ -298,10 +298,10 @@ export const SensorPanel: React.FC<SensorPanelProps> = ({ className = '' }) => {
                   htmlFor="sensor-toggle-turnoffmove"
                   className="font-display font-semibold text-sm text-slate-200 cursor-pointer block"
                 >
-                  Turn OFF Light on Moving (EEPROM 0xB3)
+                  Lights off while moving
                 </label>
                 <p className="text-xs text-slate-400">
-                  Turns off RGB LED automatically during mouse movement to maximize battery life
+                  Turn off the lights during movement to save battery.
                 </p>
               </div>
             </div>

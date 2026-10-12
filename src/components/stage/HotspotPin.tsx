@@ -40,7 +40,7 @@ export const HotspotPin: React.FC<HotspotPinProps> = ({
         onMouseLeave={() => onMouseLeave?.()}
         onFocus={() => onMouseEnter?.(id)}
         onBlur={() => onMouseLeave?.()}
-        className={`w-7 h-7 rounded-full flex items-center justify-center font-display font-semibold text-xs transition-all duration-200 cursor-pointer shadow-lg select-none outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-base ${
+        className={`w-11 h-11 rounded-full flex items-center justify-center font-display font-semibold text-xs transition-colors duration-150 cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-base ${
           isActive
             ? 'scale-110 text-white bg-card ring-2'
             : 'text-slate-300 bg-surface/90 border border-slate-700/80 hover:text-white hover:border-slate-500 hover:scale-105'
@@ -49,7 +49,7 @@ export const HotspotPin: React.FC<HotspotPinProps> = ({
           isActive
             ? {
                 borderColor: accentColor,
-                boxShadow: `0 0 14px ${accentColor}80, inset 0 0 6px ${accentColor}33`,
+                boxShadow: `0 0 0 2px ${accentColor}`,
                 outlineColor: accentColor,
               }
             : undefined

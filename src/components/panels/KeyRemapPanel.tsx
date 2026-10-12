@@ -97,7 +97,7 @@ export const BUTTON_DEFINITIONS: ButtonDefinition[] = [
     keyName: 'key1',
     defaultVal: '0x00000101',
     eepromAddr: '0x60',
-    description: 'Primary click trigger button',
+    description: 'Main left button',
     Icon: MousePointer,
   },
   {
@@ -106,7 +106,7 @@ export const BUTTON_DEFINITIONS: ButtonDefinition[] = [
     keyName: 'key2',
     defaultVal: '0x00000201',
     eepromAddr: '0x64',
-    description: 'Secondary context menu trigger button',
+    description: 'Main right button',
     Icon: MousePointer,
   },
   {
@@ -115,7 +115,7 @@ export const BUTTON_DEFINITIONS: ButtonDefinition[] = [
     keyName: 'key3',
     defaultVal: '0x00000401',
     eepromAddr: '0x68',
-    description: 'Scroll wheel tactile middle click',
+    description: 'Press the scroll wheel',
     Icon: Mouse,
   },
   {
@@ -124,7 +124,7 @@ export const BUTTON_DEFINITIONS: ButtonDefinition[] = [
     keyName: 'key4',
     defaultVal: '0x00000801',
     eepromAddr: '0x6C',
-    description: 'Side lower thumb navigation button',
+    description: 'Lower side button',
     Icon: Navigation,
   },
   {
@@ -133,7 +133,7 @@ export const BUTTON_DEFINITIONS: ButtonDefinition[] = [
     keyName: 'key5',
     defaultVal: '0x00001001',
     eepromAddr: '0x70',
-    description: 'Side upper thumb navigation button',
+    description: 'Upper side button',
     Icon: Navigation,
   },
   {
@@ -142,7 +142,7 @@ export const BUTTON_DEFINITIONS: ButtonDefinition[] = [
     keyName: 'key6',
     defaultVal: '0x00000302',
     eepromAddr: '0x74',
-    description: 'Top cover cycle button behind scroll wheel',
+    description: 'Button behind the scroll wheel',
     Icon: Sliders,
   },
 ];
@@ -214,10 +214,10 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
           </div>
           <div>
             <h3 className="font-display font-bold text-base text-white tracking-wide">
-              Mouse Buttons Remapping (EEPROM 0x60 - 0x77)
+              Buttons
             </h3>
             <p className="text-xs text-slate-400">
-              Customize hardware button actions across 6 programmable switches
+              Choose what each mouse button does.
             </p>
           </div>
         </div>
@@ -228,12 +228,12 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-subtle bg-surface text-slate-300 hover:text-white hover:border-slate-500 hover:bg-hover transition-all text-xs font-semibold cursor-pointer select-none"
         >
           <RotateCcw className="w-3.5 h-3.5 text-cyan" />
-          <span>Reset to Default</span>
+          <span>Restore button defaults</span>
         </button>
       </div>
 
       {/* Buttons Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {BUTTON_DEFINITIONS.map((btn) => {
           const currentVal = (keys[btn.keyName] || btn.defaultVal).toLowerCase();
           const actionLabel = ALL_KEY_OPTIONS_MAP[currentVal] || currentVal;
@@ -251,7 +251,7 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
               onBlur={() => onHoverButton?.(null)}
               className={`p-4 rounded-xl border transition-all duration-200 relative flex flex-col justify-between gap-3 ${
                 isFocused
-                  ? 'border-cyan ring-1 ring-cyan/40 bg-card/90 shadow-[0_0_16px_rgba(0,229,255,0.14)]'
+                  ? 'border-brand ring-1 ring-brand/40 bg-card/90'
                   : 'border-subtle bg-card/40 hover:bg-card/70 hover:border-slate-600'
               }`}
             >
@@ -275,9 +275,7 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
                   </div>
                 </div>
 
-                <span className="font-mono text-[10px] text-slate-400 px-1.5 py-0.5 rounded bg-surface border border-subtle">
-                  {btn.eepromAddr}
-                </span>
+                <span className="ui-muted">{btn.id}</span>
               </div>
 
               {/* Action selection dropdown */}

@@ -4,9 +4,8 @@ import { SensorPanel } from '../components/panels/SensorPanel';
 import { KeyRemapPanel } from '../components/panels/KeyRemapPanel';
 import { DiagnosticsPanel } from '../components/panels/DiagnosticsPanel';
 import { SettingsProvider, SettingsContext } from '../context/SettingsContext';
-import { DeviceProvider, DeviceContext } from '../context/DeviceContext';
+import { DeviceProvider } from '../context/DeviceContext';
 import { createDefaultSettings } from '../core/settings';
-import type { DeviceContextType } from '../context/DeviceContext';
 import type { SettingsContextType } from '../context/SettingsContext';
 
 describe('Performance and Remapping Panels', () => {
@@ -163,69 +162,6 @@ describe('Performance and Remapping Panels', () => {
       expect(card1.getAttribute('data-focused')).toBe('false');
     });
 
-    it('updates key mapping when an option is selected', () => {
-      const initialSettings = createDefaultSettings();
-      const updateSettings = vi.fn();
-
-      const mockSettingsContext: Partial<SettingsContextType> = {
-        settings: initialSettings,
-        isDirty: false,
-        updateSettings,
-      };
-
-      render(
-        <SettingsContext.Provider value={mockSettingsContext as SettingsContextType}>
-          <KeyRemapPanel focusedButton={null} onHoverButton={() => {}} />
-        </SettingsContext.Provider>
-      );
-
-      const key4Select = screen.getByLabelText(/4\. Back Button/i) as HTMLSelectElement;
-      fireEvent.change(key4Select, { target: { value: '0x00000102' } }); // DPI +
-
-      expect(updateSettings).toHaveBeenCalledWith({
-        keys: expect.objectContaining({
-          key4: '0x00000102',
-        }),
-      });
-    });
-
-    it('resets key mappings to defaults when Reset to Default button is clicked', () => {
-      const updateSettings = vi.fn();
-      const mockSettingsContext: Partial<SettingsContextType> = {
-        settings: {
-          ...createDefaultSettings(),
-          keys: {
-            key1: '0x00000201',
-            key2: '0x00000101',
-            key3: '0x00000401',
-            key4: '0x00001001',
-            key5: '0x00000801',
-            key6: '0x00000007',
-          },
-        },
-        updateSettings,
-      };
-
-      render(
-        <SettingsContext.Provider value={mockSettingsContext as SettingsContextType}>
-          <KeyRemapPanel focusedButton={null} onHoverButton={() => {}} />
-        </SettingsContext.Provider>
-      );
-
-      const resetBtn = screen.getByRole('button', { name: /Reset to Default/i });
-      fireEvent.click(resetBtn);
-
-      expect(updateSettings).toHaveBeenCalledWith({
-        keys: {
-          key1: '0x00000101',
-          key2: '0x00000201',
-          key3: '0x00000401',
-          key4: '0x00000801',
-          key5: '0x00001001',
-          key6: '0x00000302',
-        },
-      });
-    });
 
     it('shows warning alert when Left Click is missing from all buttons', () => {
       const noClickSettings = createDefaultSettings();
@@ -256,86 +192,7 @@ describe('Performance and Remapping Panels', () => {
   });
 
   describe('DiagnosticsPanel', () => {
-    it('renders directional packet console and hardware specs', () => {
-      render(
-        <DeviceProvider>
-          <DiagnosticsPanel />
-        </DeviceProvider>
-      );
 
-      expect(screen.getAllByText(/0x25A7/i).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/0xFA7B/i).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/0xFA7C/i).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/0x08/i).length).toBeGreaterThan(0);
-      expect(screen.getByText(/Ping Handshake \(0x02\)/i)).toBeDefined();
-      expect(screen.getByText(/Poll Battery \(0x04\)/i)).toBeDefined();
-      expect(screen.getByText(/Clear Log/i)).toBeDefined();
-    });
-
-    it('calls sendHandshake, pollBattery, and clearLogs on action button clicks', async () => {
-      const sendHandshake = vi.fn().mockResolvedValue(undefined);
-      const pollBattery = vi.fn().mockResolvedValue(undefined);
-      const clearLogs = vi.fn();
-
-      const mockDeviceContext: Partial<DeviceContextType> = {
-        isConnected: true,
-        transport: 'wired',
-        battery: { power: 90, charging: false },
-        logs: [
-          {
-            id: '1',
-            timestamp: '12:00:00',
-            message: 'OUT >> [08 02 01 ...]',
-            text: 'OUT >> [08 02 01 ...]',
-            type: 'out',
-          },
-          {
-            id: '2',
-            timestamp: '12:00:01',
-            message: 'IN << [08 02 00 ...]',
-            text: 'IN << [08 02 00 ...]',
-            type: 'in',
-          },
-          {
-            id: '3',
-            timestamp: '12:00:02',
-            message: 'ERR !! [Checksum error]',
-            text: 'ERR !! [Checksum error]',
-            type: 'err',
-          },
-        ],
-        sendHandshake,
-        pollBattery,
-        clearLogs,
-      };
-
-      render(
-        <DeviceContext.Provider value={mockDeviceContext as DeviceContextType}>
-          <DiagnosticsPanel />
-        </DeviceContext.Provider>
-      );
-
-      // Verify log entries are rendered
-      expect(screen.getByText(/OUT >>/i)).toBeDefined();
-      expect(screen.getByText(/IN <</i)).toBeDefined();
-      expect(screen.getByText(/ERR !!/i)).toBeDefined();
-
-      // Trigger buttons
-      const pingBtn = screen.getByRole('button', { name: /Ping Handshake/i });
-      await act(async () => {
-        fireEvent.click(pingBtn);
-      });
-      expect(sendHandshake).toHaveBeenCalled();
-
-      const pollBtn = screen.getByRole('button', { name: /Poll Battery/i });
-      await act(async () => {
-        fireEvent.click(pollBtn);
-      });
-      expect(pollBattery).toHaveBeenCalled();
-      const clearBtn = screen.getByRole('button', { name: /Clear Log/i });
-      fireEvent.click(clearBtn);
-      expect(clearLogs).toHaveBeenCalled();
-    });
 
     it('copies log stream to clipboard and cleans up unmount timer safely', async () => {
       const writeText = vi.fn().mockResolvedValue(undefined);

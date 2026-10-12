@@ -5,16 +5,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        base: '#090a0f',
-        surface: '#11131a',
-        card: '#181a24',
-        hover: '#202433',
-        subtle: '#232738',
-        brand: '#ff334b',
-        cyan: '#00e5ff',
+        base: 'rgb(var(--base) / <alpha-value>)',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
+        card: 'rgb(var(--card) / <alpha-value>)',
+        hover: 'rgb(var(--hover) / <alpha-value>)',
+        subtle: 'rgb(var(--border) / <alpha-value>)',
+        brand: 'rgb(var(--accent) / <alpha-value>)',
+        cyan: 'rgb(var(--accent) / <alpha-value>)',
       },
       fontFamily: {
-        display: ['"Chakra Petch"', 'sans-serif'],
+        display: ['Inter', 'sans-serif'],
         sans: ['Inter', '-apple-system', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'monospace'],
       },

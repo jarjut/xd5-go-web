@@ -4,26 +4,20 @@ A dedicated browser-based configuration utility for the **FANTECH Helios Go XD5*
 
 ---
 
-## ⚡ Quick Start
+## Quick start
 
-### Option 1: Direct File
-Open `index.html` directly in **Google Chrome**, **Microsoft Edge**, **Brave**, or **Opera**:
-```
-E:\Projects\xd5-go-web\index.html
-```
-*(Note: Because ES modules are used, some browsers require serving via local HTTP to satisfy CORS module policies).*
+Use a Chromium browser such as Chrome or Edge for mouse access.
 
-### Option 2: Local HTTP Server
-Run with Python (built-in):
 ```bash
-cd E:\Projects\xd5-go-web
-python -m http.server 3000
+npm install
+npm run dev
 ```
-Or with Node.js:
-```bash
-npx serve -l 3000 E:\Projects\xd5-go-web
-```
-Then navigate to: `http://localhost:3000`
+
+Open the local URL printed by Vite. For a production preview, run `npm run build` and `npm run preview`.
+
+The interface starts dark. Use Light/Dark in the header to switch appearance; the choice is saved separately from mouse settings. The large XD5 view stays available across desktop tabs, with a compact view above settings on small screens. The SVG is independently authored against XD5 product references; no vendor photograph is bundled.
+
+Connect the mouse, then use **Read from mouse** to load its settings. Edits are saved locally but are not written to hardware until **Save to mouse** completes. Changing theme never changes mouse settings. Select a numbered mouse button to open its binding under **Buttons**. Other tabs are **DPI**, **Lights**, **Sensor** and **Device log**.
 
 ---
 
@@ -91,12 +85,10 @@ $$\text{buf}[16] = \left(0x55 - \sum_{i=0}^{15} \text{buf}[i]\right) \pmod{256}$
 
 ## 🎨 Project Features
 
-1. **Profile Management & Signature Colors**:
-   - Manage multiple independent profiles (Balanced, Competitive FPS, MOBA, Battery Saver, or Custom).
-   - Customize profile signature accent color with visual glowing theme swatch.
-   - One-click sync from profile color to the mouse's physical LED.
-   - Synchronizes active hardware profile ID directly to mouse EEPROM `0x01` and Command `0x10`.
-   - Full JSON Export and Import capabilities for profile backup and sharing.
+1. **Hardware profiles and backup**:
+   - Switch among the three existing hardware modes.
+   - Export and import settings as JSON.
+   - Profile changes retain existing hardware synchronization behavior.
 2. **7-Stage DPI Studio**:
    - Custom stage selection, stage color pickers, and independent X / Y axis slider controls (50 to 19,000 DPI).
 3. **RGB Lighting Control**:
@@ -106,7 +98,7 @@ $$\text{buf}[16] = \left(0x55 - \sum_{i=0}^{15} \text{buf}[i]\right) \pmod{256}$
    - Polling rate (125/250/500/1000 Hz), LOD (1mm/2mm), Debounce (4–20 ms), Sleep timer (1–20 min), Angle Snapping, Ripple Control.
    - Key remapping for all 6 buttons.
 5. **Real-time Diagnostics & Battery Monitoring**:
-   - Live battery percentage bar and charging status indicator.
+   - Live battery percentage and charging status.
    - Hex packet inspector logging all transmitted 17-byte feature reports and received input reports.
 
 ---
@@ -114,14 +106,16 @@ $$\text{buf}[16] = \left(0x55 - \sum_{i=0}^{15} \text{buf}[i]\right) \pmod{256}$
 ## 📁 File Structure
 ```
 xd5-go-web/
-├── css/
-│   └── styles.css          # Dark gaming UI stylesheet
-├── js/
-│   ├── protocol.js         # WebHID communication, packet builder & checksums
-│   ├── profiles.js         # Multi-profile state, EEPROM serialization & storage
-│   ├── mouse-svg.js        # Responsive vector mouse visualizer
-│   └── app.js              # UI controller, event bindings & transaction orchestrator
-├── index.html              # Main application shell
-├── package.json            # Node.js project descriptor & serve scripts
-└── README.md               # Hardware & protocol documentation
+├── src/
+│   ├── components/         # Layout, settings panels and interactive XD5 SVG
+│   ├── context/            # Device, settings and separate UI theme state
+│   ├── core/               # WebHID protocol and EEPROM serialization
+│   ├── tests/              # Behavioral regression tests
+│   ├── App.tsx             # Persistent device/settings workspace
+│   └── index.css           # Dark/light appearance and responsive layout
+├── js/                     # Legacy prototype, not the active app
+├── css/                    # Legacy prototype styles
+├── index.html              # Vite entry page
+├── package.json            # Development, build and test commands
+└── README.md               # Usage and hardware protocol documentation
 ```
