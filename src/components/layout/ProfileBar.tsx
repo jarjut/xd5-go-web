@@ -76,7 +76,7 @@ export const ProfileBar: React.FC<ProfileBarProps> = ({ className = '' }) => {
     // Synchronize LED lighting color with profile signature accent color
     updateActiveProfile({
       lighting: {
-        ...activeProfile.lighting,
+        ...(activeProfile?.lighting ?? { mode: 0, color: activeColor, brightness: 5, speed: 5 }),
         color: activeColor,
       },
     });
@@ -128,7 +128,9 @@ export const ProfileBar: React.FC<ProfileBarProps> = ({ className = '' }) => {
         .toLowerCase()
         .replace(/[^a-z0-9_-]/g, '_');
       a.download = `xd5_${safeName}.json`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
       // Fallback in headless / non-browser test environments
@@ -170,6 +172,12 @@ export const ProfileBar: React.FC<ProfileBarProps> = ({ className = '' }) => {
               aria-label="Rename Profile Input"
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  handleCancelRename();
+                }
+              }}
               autoFocus
               className="px-2.5 py-1 text-xs font-medium bg-card border border-brand rounded text-slate-100 focus:outline-none focus:ring-1 focus:ring-brand"
             />

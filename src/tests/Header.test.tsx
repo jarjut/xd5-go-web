@@ -488,6 +488,55 @@ describe('ProfileBar component', () => {
       })
     );
   });
+  it('handles color sync with fallback defaults when activeProfile lighting is undefined', () => {
+    const updateMock = vi.fn();
+    // Intentionally test undefined lighting runtime edge case
+    const profileWithoutLighting: Profile = {
+      ...dummyProfiles[0],
+      lighting: undefined as unknown as Profile['lighting'],
+    };
+
+    const mockProfileContext: ProfileContextType = {
+      profiles: [profileWithoutLighting],
+      activeProfile: profileWithoutLighting,
+      activeIndex: 0,
+      isDirty: false,
+      selectProfile: vi.fn(),
+      setActiveProfile: vi.fn(),
+      updateActiveProfile: updateMock,
+      addNewProfile: vi.fn(),
+      addProfile: vi.fn(),
+      renameActiveProfile: vi.fn(),
+      renameProfile: vi.fn(),
+      deleteActiveProfile: vi.fn(),
+      deleteProfile: vi.fn(),
+      resetToFactory: vi.fn(),
+      resetProfile: vi.fn(),
+      exportJson: vi.fn(),
+      exportProfileJson: vi.fn(),
+      importJson: vi.fn(),
+      importProfileJson: vi.fn(),
+      applyToDevice: vi.fn(),
+      readFromDevice: vi.fn(),
+      markClean: vi.fn(),
+    };
+
+    render(
+      <ProfileContext.Provider value={mockProfileContext}>
+        <ProfileBar />
+      </ProfileContext.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Color Sync/i }));
+    expect(updateMock).toHaveBeenCalledWith({
+      lighting: {
+        mode: 0,
+        color: '#00e5ff',
+        brightness: 5,
+        speed: 5,
+      },
+    });
+  });
 
   it('renames profile using inline form when prompt is not used', () => {
     const renameMock = vi.fn();
@@ -532,6 +581,47 @@ describe('ProfileBar component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Confirm Rename/i }));
 
     expect(renameMock).toHaveBeenCalledWith('Tournament Pro');
+  });
+  it('cancels inline rename on Escape key press', () => {
+    const renameMock = vi.fn();
+    const mockProfileContext: ProfileContextType = {
+      profiles: dummyProfiles,
+      activeProfile: dummyProfiles[0],
+      activeIndex: 0,
+      isDirty: false,
+      selectProfile: vi.fn(),
+      setActiveProfile: vi.fn(),
+      updateActiveProfile: vi.fn(),
+      addNewProfile: vi.fn(),
+      addProfile: vi.fn(),
+      renameActiveProfile: renameMock,
+      renameProfile: renameMock,
+      deleteActiveProfile: vi.fn(),
+      deleteProfile: vi.fn(),
+      resetToFactory: vi.fn(),
+      resetProfile: vi.fn(),
+      exportJson: vi.fn(),
+      exportProfileJson: vi.fn(),
+      importJson: vi.fn(),
+      importProfileJson: vi.fn(),
+      applyToDevice: vi.fn(),
+      readFromDevice: vi.fn(),
+      markClean: vi.fn(),
+    };
+
+    render(
+      <ProfileContext.Provider value={mockProfileContext}>
+        <ProfileBar />
+      </ProfileContext.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Rename Profile/i }));
+    const renameInput = screen.getByLabelText(/Rename Profile Input/i);
+    fireEvent.change(renameInput, { target: { value: 'Different Name' } });
+    fireEvent.keyDown(renameInput, { key: 'Escape' });
+
+    expect(screen.queryByLabelText(/Rename Profile Input/i)).toBeNull();
+    expect(renameMock).not.toHaveBeenCalled();
   });
 
   it('disables delete button when only 1 profile exists', () => {
@@ -606,5 +696,54 @@ describe('ProfileBar component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Export Profile/i }));
     expect(exportMock).toHaveBeenCalledWith(0);
+  });
+  it('attaches and removes anchor to document.body when exporting profile', () => {
+    const exportMock = vi.fn().mockReturnValue('{"id": 1}');
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+    const removeSpy = vi.spyOn(document.body, 'removeChild');
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    window.URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
+    window.URL.revokeObjectURL = vi.fn();
+
+    const mockProfileContext: ProfileContextType = {
+      profiles: dummyProfiles,
+      activeProfile: dummyProfiles[0],
+      activeIndex: 0,
+      isDirty: false,
+      selectProfile: vi.fn(),
+      setActiveProfile: vi.fn(),
+      updateActiveProfile: vi.fn(),
+      addNewProfile: vi.fn(),
+      addProfile: vi.fn(),
+      renameActiveProfile: vi.fn(),
+      renameProfile: vi.fn(),
+      deleteActiveProfile: vi.fn(),
+      deleteProfile: vi.fn(),
+      resetToFactory: vi.fn(),
+      resetProfile: vi.fn(),
+      exportJson: exportMock,
+      exportProfileJson: exportMock,
+      importJson: vi.fn(),
+      importProfileJson: vi.fn(),
+      applyToDevice: vi.fn(),
+      readFromDevice: vi.fn(),
+      markClean: vi.fn(),
+    };
+
+    render(
+      <ProfileContext.Provider value={mockProfileContext}>
+        <ProfileBar />
+      </ProfileContext.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Export Profile/i }));
+    expect(exportMock).toHaveBeenCalledWith(0);
+    expect(appendSpy).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(removeSpy).toHaveBeenCalled();
+
+    appendSpy.mockRestore();
+    removeSpy.mockRestore();
+    clickSpy.mockRestore();
   });
 });
