@@ -14,9 +14,7 @@ import type {
 } from '../types/protocol';
 
 function delay(ms: number): Promise<void> {
-  const { promise, resolve } = Promise.withResolvers<void>();
-  setTimeout(resolve, ms);
-  return promise;
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 export const VID = 0x25a7;

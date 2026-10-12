@@ -37,6 +37,7 @@ export interface Profile {
   debounceTime?: number;
   sleepMin: number;
   sleepMinutes?: number;
+  sleepTimer?: number;
   ripple: boolean;
   angleSnap: boolean;
   turnOffOnMove: boolean;

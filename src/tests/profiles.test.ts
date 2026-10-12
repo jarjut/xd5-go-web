@@ -193,4 +193,25 @@ describe('ProfileManager & EEPROM Serialization', () => {
     expect(pm.hardwareSnapshotBytes?.length).toBe(181);
     expect(pm.hardwareBackupProfile).toBe(backup);
   });
+
+  it('correctly serializes shallow-cloned profiles without debounce or sleep desynchronization', () => {
+    const pm = new ProfileManager();
+    const base = pm.getActiveProfile();
+    // Shallow clone with modified debounce and sleep
+    const clonedWithDebounce: Profile = {
+      ...base,
+      debounce: 4,
+      debounceTime: 12, // simulated stale alias
+    };
+    const eepromDebounce = pm.serializeProfileToEEPROM(clonedWithDebounce);
+    expect(eepromDebounce[EEPROM_ADDR.DEBOUNCE]).toBe(4);
+
+    const clonedWithSleep: Profile = {
+      ...base,
+      sleepTimer: 5,
+      sleepMinutes: 10, // simulated stale alias
+    };
+    const eepromSleep = pm.serializeProfileToEEPROM(clonedWithSleep);
+    expect(eepromSleep[EEPROM_ADDR.SLEEP_MINUTES]).toBe(5);
+  });
 });

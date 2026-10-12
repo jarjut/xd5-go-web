@@ -73,6 +73,13 @@ export function createDefaultProfile(id: number, name: string, color?: string): 
     enumerable: false,
     configurable: true,
   });
+  Object.defineProperty(profile, 'sleepTimer', {
+    get() { return this.sleepMin; },
+    set(v: number) { this.sleepMin = v; },
+    enumerable: false,
+    configurable: true,
+  });
+
 
   Object.defineProperty(profile, 'accentColor', {
     get() { return this.profileColor; },
@@ -307,15 +314,11 @@ export class ProfileManager {
     buf[EEPROM_ADDR.LIGHTING + 7] = 0;
 
     // 0xA9: Debounce Time
-    const resolvedDebounce = (profile.debounceTime !== undefined && profile.debounceTime !== profile.debounce)
-      ? profile.debounceTime
-      : (profile.debounce ?? profile.debounceTime ?? 12);
+    const resolvedDebounce = profile.debounce ?? profile.debounceTime ?? 12;
     buf[EEPROM_ADDR.DEBOUNCE] = resolvedDebounce;
 
     // 0xAD: Auto-Sleep Time
-    const resolvedSleep = (profile.sleepMinutes !== undefined && profile.sleepMinutes !== profile.sleepMin)
-      ? profile.sleepMinutes
-      : (profile.sleepMin ?? profile.sleepMinutes ?? 10);
+    const resolvedSleep = profile.sleepTimer ?? profile.sleepMin ?? profile.sleepMinutes ?? 10;
     buf[EEPROM_ADDR.SLEEP_MINUTES] = resolvedSleep;
 
     // 0xAF: Angle Snapping
@@ -365,6 +368,9 @@ export class ProfileManager {
       targetProfile.sleepMin = sleep;
       if ('sleepMinutes' in targetProfile) {
         targetProfile.sleepMinutes = sleep;
+      }
+      if ('sleepTimer' in targetProfile) {
+        targetProfile.sleepTimer = sleep;
       }
     }
 
