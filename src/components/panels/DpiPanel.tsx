@@ -163,17 +163,16 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
     updateSettings({ dpiStages: newStages });
   };
 
-  const handleToggleEnable = (idx: number, nextEnabled: boolean) => {
-    if (!nextEnabled && enabledCount <= 1) return;
-    const stageNum = idx + 1;
-    const newStages = stages.map((s, i) => (i === idx ? { ...s, enabled: nextEnabled } : s));
+  const handleSetStageCount = (count: number) => {
+    const clamped = Math.max(1, Math.min(7, count));
+    const newStages = stages.map((s, i) => ({
+      ...s,
+      enabled: i < clamped,
+    }));
 
     let nextActive = activeStageNum;
-    if (!nextEnabled && activeStageNum === stageNum) {
-      const firstEnabledIdx = newStages.findIndex((s) => s.enabled);
-      if (firstEnabledIdx !== -1) {
-        nextActive = firstEnabledIdx + 1;
-      }
+    if (activeStageNum > clamped) {
+      nextActive = 1;
     }
 
     updateSettings({
@@ -181,7 +180,6 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
       activeDpiStage: nextActive,
     });
   };
-
   const handleToggleSeparateXY = () => {
     const nextVal = !separateXY;
     if (!nextVal) {
@@ -227,17 +225,29 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Active Cycle Counter Badge */}
-          <div
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-subtle text-xs font-mono"
-            title={`${enabledCount} stages enabled`}
-          >
-            <span className="text-slate-400">Enabled:</span>
-            <span className="font-bold text-brand">{enabledCount} / 7</span>
-            <span className="text-slate-500 text-[10px]">Stages</span>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* DPI Stage Count Selector (OemDrv.exe tc_adv_str19) */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-subtle">
+            <span className="text-xs font-semibold text-slate-300">DPI Stages:</span>
+            <div className="flex items-center gap-1" role="group" aria-label="Select DPI Stage Count">
+              {[1, 2, 3, 4, 5, 6, 7].map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => handleSetStageCount(count)}
+                  aria-label={`Set ${count} DPI Stages`}
+                  aria-pressed={enabledCount === count}
+                  className={`w-6 h-6 rounded text-xs font-mono font-bold transition-all ${
+                    enabledCount === count
+                      ? 'bg-brand text-white shadow-sm'
+                      : 'bg-surface text-slate-400 hover:text-white hover:bg-card/80'
+                  }`}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
           </div>
-
         {/* Separate X & Y DPI Toggle */}
         <label className="inline-flex items-center gap-2.5 cursor-pointer select-none text-xs font-semibold text-slate-300 hover:text-white px-3 py-1.5 rounded-lg bg-card border border-subtle transition-colors">
           <input
@@ -259,7 +269,7 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
         {stages.map((stage, idx) => {
           const stageNum = idx + 1;
           const isActive = activeStageNum === stageNum;
-          const isOnlyEnabled = stage.enabled && enabledCount <= 1;
+          const isCycleActive = stage.enabled;
 
           return (
             <div
@@ -268,44 +278,30 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
               className={`p-3.5 rounded-xl border transition-all ${
                 isActive
                   ? 'border-brand/70 bg-card/90'
-                  : 'border-subtle bg-card/40 hover:bg-card/70'
-              } ${!stage.enabled ? 'opacity-50' : ''}`}
+                  : isCycleActive
+                    ? 'border-subtle bg-card/40 hover:bg-card/70'
+                    : 'border-subtle/50 bg-card/20 opacity-40'
+              }`}
             >
               <div className="flex flex-col items-stretch justify-between gap-4">
-                {/* Stage Controls: Active Radio, Enable Checkbox, Stage Number & Color Swatch */}
+                {/* Stage Controls: Active Radio, Stage Number, Status Badge & Color Swatch */}
                 <div className="flex items-center gap-3">
                   {/* Active Stage Radio */}
-                  <div className="flex items-center" title={`Set Stage ${stageNum} as active`}>
+                  <div className="flex items-center" title={isCycleActive ? `Set Stage ${stageNum} as active` : `Stage ${stageNum} is not included in current cycle`}>
                     <input
                       type="radio"
                       id={`active-stage-${stageNum}`}
                       name="activeDpiStage"
                       value={stageNum}
                       checked={isActive}
-                      disabled={!stage.enabled}
+                      disabled={!isCycleActive}
                       onChange={() => updateSettings({ activeDpiStage: stageNum })}
                       aria-label={`Active Stage ${stageNum}`}
                       className="w-4 h-4 accent-brand cursor-pointer disabled:cursor-not-allowed"
                     />
                   </div>
 
-                  {/* Enable Stage Checkbox */}
-                  <div
-                    className="flex items-center"
-                    title={isOnlyEnabled ? 'At least 1 stage must remain enabled' : `Toggle Stage ${stageNum}`}
-                  >
-                    <input
-                      type="checkbox"
-                      id={`enable-stage-${stageNum}`}
-                      checked={stage.enabled}
-                      disabled={isOnlyEnabled}
-                      onChange={(e) => handleToggleEnable(idx, e.target.checked)}
-                      aria-label={`Enable Stage ${stageNum}`}
-                      className="w-4 h-4 rounded border-subtle accent-brand cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
-                  {/* Stage Label & Badge */}
+                  {/* Stage Label & Badges */}
                   <div className="flex items-center gap-2">
                     <span className="font-display font-semibold text-sm text-slate-200">
                       Stage {stageNum}
@@ -315,8 +311,16 @@ export const DpiPanel: React.FC<DpiPanelProps> = ({ className = '' }) => {
                         Active
                       </span>
                     )}
+                    {isCycleActive ? (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        Cycle #{stageNum}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-subtle">
+                        Disabled
+                      </span>
+                    )}
                   </div>
-
                   {/* Circular Color Swatch / Picker */}
                   <div className="relative flex items-center ml-1">
                     <label

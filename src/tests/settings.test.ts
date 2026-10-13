@@ -95,6 +95,21 @@ describe('Settings Core & EEPROM Serialization', () => {
     expect(recovered.lighting.brightness).toBe(4);
   });
 
+  it('computes internal modulo-256 checksum for lighting block matching OEM driver', () => {
+    const settings = createDefaultSettings();
+    settings.lighting.mode = LED_MODES.BREATHING;
+    settings.lighting.color = '#ff8800';
+    settings.lighting.speed = 5;
+    settings.lighting.brightness = 8;
+
+    const bytes = serializeSettingsToEEPROM(settings);
+    const ledSlice = bytes.slice(EEPROM_ADDR.LIGHTING, EEPROM_ADDR.LIGHTING + 7);
+    let sum = 0;
+    for (let i = 0; i < 7; i++) {
+      sum = (sum + ledSlice[i]) & 0xFF;
+    }
+    expect(sum).toBe(0x55);
+  });
   it('exports and imports profile settings JSON reliably', () => {
     const original = createDefaultSettings();
     original.profile = 1;

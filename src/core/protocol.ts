@@ -143,17 +143,51 @@ export function decodeDpiStage(bytes: Uint8Array | number[]): DecodedDpiStage {
   };
 }
 
+export function selectPrimaryDevice(devices: HIDDevice[]): HIDDevice {
+  if (!devices || devices.length === 0) {
+    throw new Error('No HID devices provided.');
+  }
+  // 1. Prioritize interface declaring Feature Report ID 8 (0x08)
+  const withFeature8 = devices.find((d) =>
+    d.collections?.some((c) => c.featureReports?.some((r) => r.reportId === 8))
+  );
+  if (withFeature8) return withFeature8;
+
+  // 2. Prioritize interface declaring Input Report ID 9 or 8
+  const withInput8or9 = devices.find((d) =>
+    d.collections?.some((c) => c.inputReports?.some((r) => r.reportId === 8 || r.reportId === 9))
+  );
+  if (withInput8or9) return withInput8or9;
+
+  // 3. Prioritize Vendor-defined usage page (0xFF00 - 0xFFFF)
+  const withVendorPage = devices.find((d) =>
+    d.collections?.some((c) => c.usagePage !== undefined && c.usagePage >= 0xff00)
+  );
+  if (withVendorPage) return withVendorPage;
+
+  // 4. Prioritize interface with any feature reports defined
+  const withAnyFeature = devices.find((d) =>
+    d.collections?.some((c) => c.featureReports && c.featureReports.length > 0)
+  );
+  if (withAnyFeature) return withAnyFeature;
+
+  // 5. Fallback: if multiple interfaces exist, interface 0 is usually standard mouse (restricted/read-only),
+  // so prefer later interfaces. If only one, pick it.
+  return devices.length > 1 ? devices[devices.length - 1] : devices[0];
+}
+
 export class XD5Protocol {
   device: HIDDevice | null = null;
+  openedDevices: HIDDevice[] = [];
   batteryTimer: TimerHandle | null = null;
   onLog: ((msg: string, type: 'in' | 'out' | 'err') => void) | null = null;
   onBatteryUpdate: ((status: BatteryStatus) => void) | null = null;
   onDeviceEvent: ((event: DeviceEvent) => void) | null = null;
-
+  pendingReadResolvers: Map<number, (data: Uint8Array) => void> = new Map();
+  mockEEPROM: Uint8Array | null = null;
   log(msg: string, type: 'in' | 'out' | 'err' = 'out'): void {
     if (this.onLog) this.onLog(msg, type);
   }
-
   get isConnected(): boolean {
     return !!(this.device && this.device.opened);
   }
@@ -186,6 +220,7 @@ export class XD5Protocol {
     const chunkLen = Math.min(10, data.length);
     const chunk = data.slice(0, chunkLen);
     const payload = [
+      0x00,
       (addr >> 8) & 0xff,
       addr & 0xff,
       chunkLen,
@@ -197,6 +232,7 @@ export class XD5Protocol {
   buildReadEEPROM(addr: number, len: number): Uint8Array {
     const chunkLen = Math.min(10, len);
     return this.buildFeatureReport(CMD_READ_EEPROM, [
+      0x00,
       (addr >> 8) & 0xff,
       addr & 0xff,
       chunkLen,
@@ -208,28 +244,65 @@ export class XD5Protocol {
       throw new Error('WebHID API is not supported in this browser.');
     }
 
-    const devices = await navigator.hid.requestDevice({
+    const requested = await navigator.hid.requestDevice({
       filters: [
         { vendorId: VID, productId: PID_WIRED },
         { vendorId: VID, productId: PID_WIRELESS },
       ],
     });
 
-    if (!devices || devices.length === 0) {
+    if (!requested || requested.length === 0) {
       return null;
     }
 
-    return await this.open(devices[0]);
+    // Retrieve all granted devices for this VID to ensure all interfaces are captured
+    const allCandidates: HIDDevice[] = [...requested];
+    try {
+      const permitted = await navigator.hid.getDevices();
+      for (const d of permitted) {
+        if (d.vendorId === VID && (d.productId === PID_WIRED || d.productId === PID_WIRELESS)) {
+          if (!allCandidates.includes(d)) {
+            allCandidates.push(d);
+          }
+        }
+      }
+    } catch {
+      // ignore error
+    }
+
+    const primaryDevice = selectPrimaryDevice(allCandidates);
+    return await this.open(primaryDevice, allCandidates);
   }
 
-  async open(hidDevice: HIDDevice): Promise<HIDDevice> {
-    this.device = hidDevice;
-    await this.device.open();
+  async open(hidDevice: HIDDevice, allCandidateDevices: HIDDevice[] = [hidDevice]): Promise<HIDDevice> {
+    this.close();
 
-    this.device.addEventListener('inputreport', (e) => this.handleInputReport(e));
+    const devicesToOpen = allCandidateDevices.length > 0 ? allCandidateDevices : [hidDevice];
+    const openedList: HIDDevice[] = [];
+
+    for (const d of devicesToOpen) {
+      try {
+        if (!d.opened) {
+          await d.open();
+        }
+        d.addEventListener('inputreport', (e) => this.handleInputReport(e));
+        openedList.push(d);
+      } catch (err) {
+        this.log(`Warning: Failed to open interface ${d.productName || 'HID'}: ${err}`, 'err');
+      }
+    }
+
+    this.openedDevices = openedList;
+    this.device = hidDevice.opened ? hidDevice : (openedList[0] || hidDevice);
+    if (!this.device.opened) {
+      await this.device.open();
+    }
 
     const isWireless = this.device.productId === PID_WIRELESS;
-    this.log(`Connected: ${this.device.productName || 'Fantech Helios Go XD5'} (${isWireless ? '2.4GHz Wireless' : 'Wired USB'})`, 'in');
+    this.log(
+      `Connected: ${this.device.productName || 'Fantech Helios Go XD5'} (${isWireless ? '2.4GHz Wireless' : 'Wired USB'}) [${openedList.length} interfaces opened]`,
+      'in'
+    );
 
     // Initial handshake
     await this.sendHandshake(true);
@@ -244,6 +317,12 @@ export class XD5Protocol {
   close(): void {
     clearInterval(this.batteryTimer as number);
     this.batteryTimer = null;
+    for (const d of this.openedDevices) {
+      try {
+        d.close().catch(() => {});
+      } catch {}
+    }
+    this.openedDevices = [];
     if (this.device) {
       this.sendHandshake(false).catch(() => {});
       this.device.close().catch(() => {});
@@ -256,7 +335,24 @@ export class XD5Protocol {
     if (!this.isConnected || !this.device) throw new Error('Mouse is not connected.');
     const reportId = packet[0];
     const data = packet.subarray(1); // WebHID payload excludes report ID
-    await this.device.sendFeatureReport(reportId, data);
+
+    try {
+      await this.device.sendFeatureReport(reportId, data);
+    } catch (err) {
+      let sent = false;
+      for (const d of this.openedDevices) {
+        if (d !== this.device && d.opened) {
+          try {
+            await d.sendFeatureReport(reportId, data);
+            this.device = d;
+            sent = true;
+            break;
+          } catch {}
+        }
+      }
+      if (!sent) throw err;
+    }
+
     const hex = Array.from(packet).map(b => b.toString(16).padStart(2, '0')).join(' ');
     this.log(`TX [Feature 0x08]: ${hex}`, 'out');
   }
@@ -267,20 +363,53 @@ export class XD5Protocol {
     const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
     this.log(`RX [Input 0x${reportId.toString(16).padStart(2, '0')}]: ${hex}`, 'in');
 
+    // Command 0x08 EEPROM Read Response (OemDrv.exe VA 0x448ac0..0x448aed)
+    const isEepromResponse =
+      bytes[0] === CMD_READ_EEPROM ||
+      (bytes.length >= 7 && bytes[1] === CMD_READ_EEPROM) ||
+      (reportId === CMD_READ_EEPROM && bytes.length >= 6);
+
+    if (isEepromResponse) {
+      const offset = bytes[0] === CMD_READ_EEPROM ? 0 : (bytes[1] === CMD_READ_EEPROM ? 1 : -1);
+      const addrHi = offset >= 0 ? bytes[offset + 2] : bytes[1];
+      const addrLo = offset >= 0 ? bytes[offset + 3] : bytes[2];
+      const respAddr = (addrHi << 8) | addrLo;
+      const chunkLen = (offset >= 0 ? bytes[offset + 4] : bytes[3]) || 10;
+      const dataStart = offset >= 0 ? offset + 5 : 4;
+      const chunkData = bytes.slice(dataStart, dataStart + chunkLen);
+      const chunkHex = Array.from(chunkData).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      this.log(`RX [EEPROM Read 0x${respAddr.toString(16).padStart(4, '0')}]: ${chunkLen} bytes (${chunkHex})`, 'in');
+
+      const resolver = this.pendingReadResolvers.get(respAddr);
+      if (resolver) {
+        this.pendingReadResolvers.delete(respAddr);
+        resolver(chunkData);
+      } else {
+        const firstEntry = this.pendingReadResolvers.entries().next().value;
+        if (firstEntry) {
+          const [firstAddr, firstResolver] = firstEntry;
+          this.pendingReadResolvers.delete(firstAddr);
+          firstResolver(chunkData);
+        }
+      }
+    }
+
     // Command 0x04 Battery response (OemDrv.exe VA 0x449213 / 0x449218)
-    // Feature/Input payload: byte[0]=0x04, byte[5]=power %, byte[6]=charging (0/1)
-    if (bytes[0] === CMD_GET_BATTERY || (bytes.length >= 7 && bytes[1] === CMD_GET_BATTERY)) {
-      const offset = bytes[0] === CMD_GET_BATTERY ? 0 : 1;
-      const power = bytes[offset + 5];
-      const charging = bytes[offset + 6];
+    const isBatteryResponse =
+      bytes[0] === CMD_GET_BATTERY ||
+      (bytes.length >= 7 && bytes[1] === CMD_GET_BATTERY) ||
+      (reportId === CMD_GET_BATTERY && bytes.length >= 6);
+
+    if (isBatteryResponse) {
+      const offset = bytes[0] === CMD_GET_BATTERY ? 0 : (bytes[1] === CMD_GET_BATTERY ? 1 : -1);
+      const power = offset >= 0 ? bytes[offset + 5] : bytes[4];
+      const charging = offset >= 0 ? bytes[offset + 6] : bytes[5];
       if (this.onBatteryUpdate && power !== undefined) {
         this.onBatteryUpdate({ power, charging: Boolean(charging) });
       }
     }
 
     // Command 0x0A Physical Hardware Event (OemDrv.exe VA 0x447700..0x447745)
-    // byte[0]=0x0A, byte[5]=flags (bit 0 = DPI change, bit 1 = profile change)
-    // byte[6]=DPI stage index (0-based / 1-based), byte[7]=profile index
     if (bytes[0] === CMD_DEVICE_EVENT && bytes.length >= 7) {
       const flags = bytes[5];
       if ((flags & 0x01) !== 0) {
@@ -342,17 +471,49 @@ export class XD5Protocol {
     }
   }
 
+  async readEEPROMChunk(addr: number, chunkLen: number, retries: number = 3): Promise<Uint8Array> {
+    if (this.mockEEPROM) {
+      return this.mockEEPROM.subarray(addr, addr + chunkLen);
+    }
+    for (let attempt = 0; attempt < retries; attempt++) {
+      const pkt = this.buildReadEEPROM(addr, chunkLen);
+      const readPromise = new Promise<Uint8Array>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.pendingReadResolvers.delete(addr);
+          reject(new Error(`Timeout reading EEPROM @ 0x${addr.toString(16).padStart(4, '0')}`));
+        }, 1000);
+
+        this.pendingReadResolvers.set(addr, (data) => {
+          clearTimeout(timer);
+          resolve(data);
+        });
+      });
+
+      await this.sendFeatureReport(pkt);
+
+      try {
+        const data = await readPromise;
+        return data;
+      } catch {
+        if (!this.isConnected) throw new Error('Device disconnected during EEPROM read.');
+        this.log(`Retry ${attempt + 1}/${retries} reading EEPROM @ 0x${addr.toString(16).padStart(4, '0')}...`, 'err');
+        await delay(35);
+      }
+    }
+    throw new Error(`EEPROM read timed out @ 0x${addr.toString(16).padStart(4, '0')} after ${retries} attempts.`);
+  }
+
   async readEEPROM(startAddr: number, totalLen: number): Promise<Uint8Array> {
     const result = new Uint8Array(totalLen);
     let offset = 0;
     while (offset < totalLen) {
       const chunkLen = Math.min(10, totalLen - offset);
       const addr = startAddr + offset;
-      const pkt = this.buildReadEEPROM(addr, chunkLen);
-      this.log(`Reading EEPROM @ 0x${addr.toString(16).padStart(4, '0')}...`);
-      await this.sendFeatureReport(pkt);
-      await delay(20);
+      this.log(`Reading EEPROM @ 0x${addr.toString(16).padStart(4, '0')} (${chunkLen} bytes)...`);
+      const chunk = await this.readEEPROMChunk(addr, chunkLen);
+      result.set(chunk.subarray(0, chunkLen), offset);
       offset += chunkLen;
+      await delay(15);
     }
     return result;
   }

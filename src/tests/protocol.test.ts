@@ -25,8 +25,9 @@ import {
   BRIGHTNESS_TABLE,
   STREAMING_SPEED_TABLE,
   STREAMING_BRIGHTNESS_TABLE,
+  selectPrimaryDevice,
 } from '../core/protocol';
-import type { DeviceEvent } from '../types/protocol';
+import type { DeviceEvent, HIDDevice } from '../types/protocol';
 
 describe('XD5Protocol reverse-engineering verification', () => {
   it('correctly calculates 17-byte packet checksum summing to 0x55 mod 256', () => {
@@ -102,7 +103,7 @@ describe('XD5Protocol reverse-engineering verification', () => {
     expect(decoded.yDpi).toBe(1600);
   });
 
-  it('builds write EEPROM feature report packets with 10-byte chunk size constraint', () => {
+  it('builds write EEPROM feature report packets matching OEM driver layout', () => {
     const proto = new XD5Protocol();
     const data = [1, 2, 3, 4, 5];
     const packet = proto.buildWriteEEPROM(0x000A, data);
@@ -110,10 +111,11 @@ describe('XD5Protocol reverse-engineering verification', () => {
     expect(packet.length).toBe(17);
     expect(packet[0]).toBe(REPORT_ID); // 0x08
     expect(packet[1]).toBe(CMD_WRITE_EEPROM); // 0x07
-    expect(packet[2]).toBe(0x00); // addr MSB
-    expect(packet[3]).toBe(0x0A); // addr LSB
-    expect(packet[4]).toBe(5); // chunkLen
-    expect(Array.from(packet.slice(5, 10))).toEqual([1, 2, 3, 4, 5]);
+    expect(packet[2]).toBe(0x00); // Subcommand / reserved
+    expect(packet[3]).toBe(0x00); // addr MSB
+    expect(packet[4]).toBe(0x0A); // addr LSB
+    expect(packet[5]).toBe(5); // chunkLen
+    expect(Array.from(packet.slice(6, 11))).toEqual([1, 2, 3, 4, 5]);
 
     // Checksum satisfies 0x55 mod 256
     let sum = 0;
@@ -121,6 +123,37 @@ describe('XD5Protocol reverse-engineering verification', () => {
     expect(sum).toBe(0x55);
   });
 
+  it('builds read EEPROM feature report packets matching OEM driver layout', () => {
+    const proto = new XD5Protocol();
+    const packet = proto.buildReadEEPROM(0x002C, 10);
+
+    expect(packet.length).toBe(17);
+    expect(packet[0]).toBe(REPORT_ID); // 0x08
+    expect(packet[1]).toBe(CMD_READ_EEPROM); // 0x08
+    expect(packet[2]).toBe(0x00); // Subcommand / reserved
+    expect(packet[3]).toBe(0x00); // addr MSB
+    expect(packet[4]).toBe(0x2C); // addr LSB
+    expect(packet[5]).toBe(10); // chunkLen
+
+    let sum = 0;
+    for (let i = 0; i < 17; i++) sum = (sum + packet[i]) & 0xFF;
+    expect(sum).toBe(0x55);
+  });
+
+  it('reads EEPROM data via mock buffer seamlessly', async () => {
+    const proto = new XD5Protocol();
+    const mockData = new Uint8Array(181);
+    mockData[0] = 0x01; // 1000Hz
+    mockData[1] = 0x02; // profile 2
+    mockData[2] = 0x04; // 4 stages
+    proto.mockEEPROM = mockData;
+
+    const result = await proto.readEEPROM(0x00, 181);
+    expect(result.length).toBe(181);
+    expect(result[0]).toBe(0x01);
+    expect(result[1]).toBe(0x02);
+    expect(result[2]).toBe(0x04);
+  });
   it('exposes accurate protocol constants for hardware identification and layout', () => {
     expect(VID).toBe(0x25A7);
     expect(PID_WIRED).toBe(0xFA7B);
@@ -218,5 +251,26 @@ describe('XD5Protocol reverse-engineering verification', () => {
     proto.handleInputReport({ reportId: 0x08, data: new DataView(profPkt.buffer) });
 
     expect(events).toContainEqual({ type: 'profile_change', profileIndex: 1 });
+  });
+
+  it('selectPrimaryDevice prioritizes vendor interface with feature report 8', () => {
+    const mouseInterface = {
+      productName: 'XD5 Mouse',
+      collections: [{ usagePage: 1, usage: 2, featureReports: [], inputReports: [{ reportId: 1 }] }],
+    } as unknown as HIDDevice;
+    const vendorInterface = {
+      productName: 'XD5 Vendor Config',
+      collections: [
+        {
+          usagePage: 0xff00,
+          usage: 1,
+          featureReports: [{ reportId: 8 }],
+          inputReports: [{ reportId: 9 }],
+        },
+      ],
+    } as unknown as HIDDevice;
+
+    const selected = selectPrimaryDevice([mouseInterface, vendorInterface]);
+    expect(selected.productName).toBe('XD5 Vendor Config');
   });
 });

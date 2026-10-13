@@ -34,8 +34,8 @@ describe('DpiPanel', () => {
     for (let i = 1; i <= 7; i++) {
       expect(screen.getByText(new RegExp(`^Stage ${i}$`, 'i'))).toBeDefined();
       expect(screen.getByLabelText(new RegExp(`Active Stage ${i}`, 'i'))).toBeDefined();
-      expect(screen.getByLabelText(new RegExp(`Enable Stage ${i}`, 'i'))).toBeDefined();
       expect(screen.getByLabelText(new RegExp(`Stage ${i} Color`, 'i'))).toBeDefined();
+      expect(screen.getByLabelText(new RegExp(`Set ${i} DPI Stages`, 'i'))).toBeDefined();
     }
   });
 
@@ -51,27 +51,29 @@ describe('DpiPanel', () => {
     expect(radio3.checked).toBe(true);
   });
 
-  it('allows disabling and enabling stages, preventing disabling all stages', () => {
+  it('allows configuring DPI Stage count (e.g. 4 stages in cycle)', () => {
     render(
       <SettingsProvider>
         <DpiPanel />
       </SettingsProvider>
     );
 
-    const enableCheck7 = screen.getByLabelText(/Enable Stage 7/i) as HTMLInputElement;
-    expect(enableCheck7.checked).toBe(true);
-    fireEvent.click(enableCheck7);
-    expect(enableCheck7.checked).toBe(false);
+    // Select 4 stages in cycle
+    const btn4 = screen.getByLabelText(/Set 4 DPI Stages/i);
+    fireEvent.click(btn4);
+    expect(btn4.getAttribute('aria-pressed')).toBe('true');
 
-    // Disable stages 2 to 6
-    for (let i = 2; i <= 6; i++) {
-      const chk = screen.getByLabelText(new RegExp(`Enable Stage ${i}`, 'i')) as HTMLInputElement;
-      if (chk.checked) fireEvent.click(chk);
+    // Stages 1 to 4 should be enabled (active radios enabled)
+    for (let i = 1; i <= 4; i++) {
+      const radio = screen.getByLabelText(new RegExp(`Active Stage ${i}`, 'i')) as HTMLInputElement;
+      expect(radio.disabled).toBe(false);
     }
 
-    // Now only Stage 1 is enabled. Trying to disable stage 1 should be prevented or disabled.
-    const enableCheck1 = screen.getByLabelText(/Enable Stage 1/i) as HTMLInputElement;
-    expect(enableCheck1.disabled).toBe(true);
+    // Stages 5 to 7 should be disabled (radios disabled)
+    for (let i = 5; i <= 7; i++) {
+      const radio = screen.getByLabelText(new RegExp(`Active Stage ${i}`, 'i')) as HTMLInputElement;
+      expect(radio.disabled).toBe(true);
+    }
   });
 
   it('updates stage color via color input', () => {

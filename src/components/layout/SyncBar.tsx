@@ -4,17 +4,62 @@ import { useSettings } from '../../context/SettingsContext';
 
 export function SyncBar({ className = '' }: { className?: string }) {
   const { isConnected, isSyncing } = useDevice();
-  const { isDirty, applyToDevice, readFromDevice } = useSettings();
-  const [result, setResult] = useState('');
+  const { readFromDevice, isLoadedFromDevice } = useSettings();
   const [error, setError] = useState('');
-  const [pending, setPending] = useState<'read' | 'save' | null>(null);
-  const busy = isSyncing || pending !== null;
-  const run = async (action: 'read' | 'save') => {
-    if (!isConnected || busy) return;
-    setPending(action); setError(''); setResult('');
-    try { if (action === 'save') await applyToDevice(); else await readFromDevice(); setResult(action === 'save' ? 'Changes saved to mouse' : 'Settings read from mouse'); }
-    catch { setError(action === 'save' ? 'Could not save. Check the connection and try again.' : 'Could not read settings. Check the connection and try again.'); }
-    finally { setPending(null); }
+  const [isReading, setIsReading] = useState(false);
+
+  const handleReload = async () => {
+    if (!isConnected || isSyncing || isReading) return;
+    setIsReading(true);
+    setError('');
+    try {
+      await readFromDevice();
+    } catch {
+      setError('Could not reload settings from mouse. Check connection.');
+    } finally {
+      setIsReading(false);
+    }
   };
-  return <section className={`sync-bar ${className}`} aria-label="Save mouse settings"><div aria-live="polite"><div className="sync-title">{busy ? pending === 'read' ? 'Reading settings…' : 'Saving settings…' : isDirty ? 'Unsaved changes' : result || 'Mouse settings'}</div><div className="ui-muted">{isDirty ? 'Your changes are local until you save to the mouse.' : !isConnected ? 'Connect your mouse to read or save settings.' : 'Read settings from your mouse or save your changes.'}</div>{error && <p className="ui-error" role="alert">{error}</p>}</div><div className="sync-actions"><button className="ui-button" disabled={!isConnected || busy} onClick={() => run('read')}>Read from mouse</button><button className="ui-button primary" disabled={!isConnected || busy} onClick={() => run('save')}>Save to mouse</button></div></section>;
+
+  const busy = isSyncing || isReading;
+
+  return (
+    <section className={`sync-bar ${className}`} aria-label="Mouse sync status">
+      <div aria-live="polite">
+        <div className="sync-title">
+          {busy
+            ? isReading
+              ? 'Reading settings from mouse…'
+              : 'Auto-syncing to mouse…'
+            : !isConnected
+              ? 'Mouse not connected'
+              : isLoadedFromDevice
+                ? 'In sync with mouse'
+                : 'Reading initial settings…'}
+        </div>
+        <div className="ui-muted">
+          {!isConnected
+            ? 'Connect your mouse above to read hardware settings. Changes will auto-sync instantly.'
+            : isLoadedFromDevice
+              ? 'All settings are loaded directly from mouse hardware. Changes auto-sync instantly.'
+              : 'Connecting and reading hardware EEPROM settings from mouse…'}
+        </div>
+        {error && (
+          <p className="ui-error" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+      <div className="sync-actions">
+        <button
+          className="ui-button"
+          disabled={!isConnected || busy}
+          onClick={handleReload}
+          title="Reload fresh settings directly from mouse hardware"
+        >
+          {isReading ? 'Reading…' : 'Reload from mouse'}
+        </button>
+      </div>
+    </section>
+  );
 }

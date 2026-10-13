@@ -100,18 +100,24 @@ export function serializeSettingsToEEPROM(settings: MouseSettings): Uint8Array {
   const briIdx = Math.max(0, Math.min(9, (led.brightness || 8) - 1));
   const spdIdx = Math.max(0, Math.min(9, (led.speed || 5) - 1));
 
-  buf[EEPROM_ADDR.LIGHTING] = led.mode !== undefined ? led.mode : 0;
+  const mode = led.mode !== undefined ? led.mode : 0;
+  const spdByte = mode === LED_MODES.STREAMING
+    ? STREAMING_SPEED_TABLE[spdIdx]
+    : SPEED_TABLE[spdIdx];
+  const briByte = mode === LED_MODES.STREAMING
+    ? STREAMING_BRIGHTNESS_TABLE[briIdx]
+    : BRIGHTNESS_TABLE[briIdx];
+
+  // Internal checksum for Lighting: sum(bytes[0..6]) == 0x55 (mod 256) (OemDrv.exe VA 0x40fe17..0x40fe47)
+  const chk = (0x55 - mode - lr - lg - lb - spdByte - briByte) & 0xff;
+
+  buf[EEPROM_ADDR.LIGHTING] = mode;
   buf[EEPROM_ADDR.LIGHTING + 1] = lr;
   buf[EEPROM_ADDR.LIGHTING + 2] = lg;
   buf[EEPROM_ADDR.LIGHTING + 3] = lb;
-  if (led.mode === LED_MODES.STREAMING) {
-    buf[EEPROM_ADDR.LIGHTING + 4] = STREAMING_SPEED_TABLE[spdIdx];
-    buf[EEPROM_ADDR.LIGHTING + 5] = STREAMING_BRIGHTNESS_TABLE[briIdx];
-  } else {
-    buf[EEPROM_ADDR.LIGHTING + 4] = SPEED_TABLE[spdIdx];
-    buf[EEPROM_ADDR.LIGHTING + 5] = BRIGHTNESS_TABLE[briIdx];
-  }
-  buf[EEPROM_ADDR.LIGHTING + 6] = 0;
+  buf[EEPROM_ADDR.LIGHTING + 4] = spdByte;
+  buf[EEPROM_ADDR.LIGHTING + 5] = briByte;
+  buf[EEPROM_ADDR.LIGHTING + 6] = chk;
   buf[EEPROM_ADDR.LIGHTING + 7] = 0;
 
   buf[EEPROM_ADDR.DEBOUNCE] = settings.debounce ?? 12;

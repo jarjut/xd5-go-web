@@ -18,12 +18,26 @@ export interface HIDInputReportEvent extends Event {
   data: DataView;
   device: HIDDevice;
 }
+export interface HIDReportInfo {
+  reportId: number;
+}
+
+export interface HIDCollectionInfo {
+  usagePage?: number;
+  usage?: number;
+  type?: number;
+  children?: readonly HIDCollectionInfo[];
+  inputReports?: readonly HIDReportInfo[];
+  outputReports?: readonly HIDReportInfo[];
+  featureReports?: readonly HIDReportInfo[];
+}
 
 export interface HIDDevice extends EventTarget {
   opened: boolean;
   vendorId: number;
   productId: number;
   productName?: string;
+  collections?: readonly HIDCollectionInfo[];
   open(): Promise<void>;
   close(): Promise<void>;
   sendFeatureReport(reportId: number, data: BufferSource | Uint8Array): Promise<void>;

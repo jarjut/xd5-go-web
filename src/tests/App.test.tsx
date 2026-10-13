@@ -31,11 +31,10 @@ describe('workbench interactions', () => {
   it('keeps local changes editable while hardware actions are unavailable', () => {
     render(<App/>);
     fireEvent.click(screen.getByRole('checkbox', {name:'Separate X & Y DPI'}));
-    expect((screen.getByRole('button', {name:'Save to mouse'}) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', {name:'Read from mouse'}) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText('Unsaved changes')).toBeDefined();
+    expect((screen.getByRole('button', {name:'Reload from mouse'}) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('Mouse not connected')).toBeDefined();
     fireEvent.click(screen.getByRole('button', {name:'Use light theme'}));
     expect(document.documentElement.dataset.theme).toBe('light');
-    expect(screen.getByText('Unsaved changes')).toBeDefined();
+    expect(screen.getByText('Mouse not connected')).toBeDefined();
   });
 });
