@@ -126,6 +126,20 @@ describe('Settings Core & EEPROM Serialization', () => {
     }
   });
 
+  it('computes internal modulo-256 checksum for DPI stage colors matching OEM driver', () => {
+    const settings = createDefaultSettings();
+    const bytes = serializeSettingsToEEPROM(settings);
+    for (let i = 0; i < 7; i++) {
+      const base = EEPROM_ADDR.DPI_COLORS + i * 4;
+      const colorSlice = bytes.slice(base, base + 4);
+      let sum = 0;
+      for (let j = 0; j < 4; j++) {
+        sum = (sum + colorSlice[j]) & 0xFF;
+      }
+      expect(sum).toBe(0x55);
+    }
+  });
+
   it('deserializes hardware key matrix with per-button internal checksum without corrupting action codes', () => {
     const fakeHwEeprom = new Uint8Array(181);
     fakeHwEeprom[EEPROM_ADDR.POLLING_RATE] = 0x01;

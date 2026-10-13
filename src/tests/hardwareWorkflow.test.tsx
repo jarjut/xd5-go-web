@@ -39,9 +39,9 @@ describe('simulated XD5 workflow', () => {
     expect(hid.flash[0xa9]).toBe(4);
     expect(hid.flash[0xaa]).toBe(0x51);
     const writes = hid.reports.filter((packet) => packet[1] === 0x07);
-    expect(writes).toHaveLength(19);
-    expect(Array.from(writes[0].subarray(0, 8))).toEqual([8, 7, 0, 0, 0, 10, 8, 0x4d]);
-    expect(Array.from(writes[18].subarray(0, 6))).toEqual([8, 7, 0, 0, 180, 1]);
+    expect(writes).toHaveLength(2);
+    expect(Array.from(writes[0].subarray(0, 8))).toEqual([8, 7, 0, 0, 0, 2, 8, 0x4d]);
+    expect(Array.from(writes[1].subarray(0, 8))).toEqual([8, 7, 0, 0, 0xa9, 2, 4, 0x51]);
     for (const packet of writes) expect(packet.reduce((sum, byte) => sum + byte, 0) & 0xff).toBe(0x55);
     expect(hid.reports[hid.reports.length - 1]?.[1]).toBe(9);
     await act(async () => {
@@ -88,7 +88,7 @@ describe('simulated XD5 workflow', () => {
     const connecting = session.connect(hardware);
     await vi.advanceTimersByTimeAsync(400);
     await connecting;
-    session.updateSettings({ debounce: 4 });
+    session.updateSettings({ pollingRate: 125, debounce: 4 });
     const writing = session.applyToDevice();
     await vi.advanceTimersByTimeAsync(1);
     expect(hid.reports.filter((packet) => packet[1] === 7)).toHaveLength(1);

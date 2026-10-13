@@ -69,8 +69,9 @@ describe('SettingsSession', () => {
     expect(session.getSnapshot().settings.debounce).toBe(16);
     secondWrite.resolve();
     await applying;
-    for (const [, bytes] of vi.mocked(protocol.writeEEPROM).mock.calls) {
-      writes.push({ ...createDefaultSettings(), debounce: bytes[0xa9] });
+    for (const [addr, bytes] of vi.mocked(protocol.writeEEPROM).mock.calls) {
+      const val = addr === 0 ? bytes[0xa9] : bytes[0xa9 - addr];
+      writes.push({ ...createDefaultSettings(), debounce: val });
     }
     expect(writes.map((settings) => settings.debounce)).toEqual([4, 16]);
     expect(session.getSnapshot().isDirty).toBe(false);
@@ -173,7 +174,7 @@ describe('SettingsSession', () => {
     session.resetToDefaults();
     await vi.advanceTimersByTimeAsync(150);
     expect(session.getSnapshot().isDirty).toBe(false);
-    expect(vi.mocked(protocol.writeEEPROM).mock.calls.map(([, bytes]) => bytes[0xa9])).toEqual([8, 12]);
+    expect(vi.mocked(protocol.writeEEPROM).mock.calls.map(([addr, bytes]) => addr === 0 ? bytes[0xa9] : bytes[0xa9 - addr])).toEqual([8, 12]);
     session.disconnect();
   });
 

@@ -258,12 +258,12 @@ export class XD5Protocol {
       return null;
     }
 
-    // Retrieve all granted devices for this VID to ensure all interfaces are captured
-    const allCandidates: HIDDevice[] = [...requested];
+    const targetPid = requested[0].productId;
+    const allCandidates: HIDDevice[] = requested.filter((d) => d.productId === targetPid);
     try {
       const permitted = await navigator.hid.getDevices();
       for (const d of permitted) {
-        if (d.vendorId === VID && (d.productId === PID_WIRED || d.productId === PID_WIRELESS)) {
+        if (d.vendorId === VID && d.productId === targetPid) {
           if (!allCandidates.includes(d)) {
             allCandidates.push(d);
           }
@@ -361,7 +361,7 @@ export class XD5Protocol {
     } catch (err) {
       let sent = false;
       for (const d of this.openedDevices) {
-        if (d !== this.device && d.opened) {
+        if (d !== this.device && d.opened && d.productId === this.device.productId) {
           try {
             await d.sendFeatureReport(reportId, data);
             this.device = d;
@@ -487,7 +487,7 @@ export class XD5Protocol {
       const pkt = this.buildWriteEEPROM(addr, chunk);
       this.log(`Writing EEPROM @ 0x${addr.toString(16).padStart(4, '0')} (${chunkLen} bytes)...`);
       await this.sendFeatureReport(pkt);
-      await delay(15); // Hardware write settling delay
+      await delay(10); // Hardware write settling delay
       offset += chunkLen;
     }
   }
