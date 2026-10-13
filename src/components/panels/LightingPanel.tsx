@@ -355,6 +355,28 @@ export const LightingPanel: React.FC<LightingPanelProps> = ({ className = '' }) 
           </div>
         </div>
       </div>
+
+      {/* Power saving option */}
+      <div className="p-4 rounded-xl border border-subtle bg-card/50 flex items-center justify-between">
+        <div>
+          <label
+            htmlFor="turn-off-on-move-toggle"
+            className="text-xs font-semibold uppercase tracking-wider text-slate-300"
+          >
+            Turn off light when moving
+          </label>
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            Turn off RGB lighting while the mouse is moving to save battery.
+          </p>
+        </div>
+        <input
+          id="turn-off-on-move-toggle"
+          type="checkbox"
+          checked={Boolean(settings?.turnOffOnMove)}
+          onChange={(e) => updateSettings({ turnOffOnMove: e.target.checked })}
+          className="w-5 h-5 accent-brand cursor-pointer rounded"
+        />
+      </div>
     </div>
   );
 };
