@@ -72,12 +72,26 @@ export function createDefaultSettings(): MouseSettings {
 export function serializeSettingsToEEPROM(settings: MouseSettings): Uint8Array {
   const buf = new Uint8Array(181);
 
-  buf[EEPROM_ADDR.POLLING_RATE] = POLLING_RATES[settings.pollingRate] || 0x01;
-  buf[EEPROM_ADDR.ACTIVE_PROFILE] = Math.max(0, Math.min(2, settings.profile ?? 0));
-  buf[EEPROM_ADDR.STAGE_COUNT] = settings.dpiStages.filter((s) => s.enabled).length || 1;
-  buf[EEPROM_ADDR.CURRENT_DPI_IDX] = Math.max(0, Math.min(6, settings.activeDpiStage - 1));
-  buf[EEPROM_ADDR.LOD] = settings.lod || 1;
+  const pRateCode = POLLING_RATES[settings.pollingRate] || 0x01;
+  buf[EEPROM_ADDR.POLLING_RATE] = pRateCode;
+  buf[EEPROM_ADDR.POLLING_RATE + 1] = (0x55 - pRateCode) & 0xff;
 
+  const stageCount = Math.max(1, Math.min(7, settings.dpiStages.filter((s) => s.enabled).length || 1));
+  buf[EEPROM_ADDR.STAGE_COUNT] = stageCount;
+  buf[EEPROM_ADDR.STAGE_COUNT + 1] = (0x55 - stageCount) & 0xff;
+
+  const currentDpiIdx = Math.max(0, Math.min(6, settings.activeDpiStage - 1));
+  buf[EEPROM_ADDR.CURRENT_DPI_IDX] = currentDpiIdx;
+  buf[EEPROM_ADDR.CURRENT_DPI_IDX + 1] = (0x55 - currentDpiIdx) & 0xff;
+
+  buf[6] = 0x00;
+  buf[7] = 0x55;
+  buf[8] = 0x00;
+  buf[9] = 0x55;
+
+  const lod = settings.lod || 1;
+  buf[EEPROM_ADDR.LOD] = lod;
+  buf[EEPROM_ADDR.LOD + 1] = (0x55 - lod) & 0xff;
   for (let i = 0; i < 7; i++) {
     const st = settings.dpiStages[i] || { x: 800, y: 800 };
     const stageBytes = encodeDpiStage(st.x, st.y);
@@ -137,12 +151,29 @@ export function serializeSettingsToEEPROM(settings: MouseSettings): Uint8Array {
   buf[EEPROM_ADDR.LIGHTING + 6] = chk;
   buf[EEPROM_ADDR.LIGHTING + 7] = 0;
 
-  buf[EEPROM_ADDR.DEBOUNCE] = settings.debounce ?? 12;
-  buf[EEPROM_ADDR.SLEEP_MINUTES] = settings.sleepMin ?? 10;
-  buf[EEPROM_ADDR.ANGLE_SNAPPING] = settings.angleSnap ? 1 : 0;
-  buf[EEPROM_ADDR.RIPPLE_CONTROL] = settings.ripple ? 1 : 0;
-  buf[EEPROM_ADDR.LIGHT_OFF_MOVE] = settings.turnOffOnMove ? 1 : 0;
+  buf[0xA8] = 0x55;
+  const debounce = settings.debounce ?? 12;
+  buf[EEPROM_ADDR.DEBOUNCE] = debounce;
+  buf[EEPROM_ADDR.DEBOUNCE + 1] = (0x55 - debounce) & 0xff;
 
+  buf[0xAB] = 0x00;
+  buf[0xAC] = 0x55;
+
+  const sleepMin = settings.sleepMin ?? 10;
+  buf[EEPROM_ADDR.SLEEP_MINUTES] = sleepMin;
+  buf[EEPROM_ADDR.SLEEP_MINUTES + 1] = (0x55 - sleepMin) & 0xff;
+
+  const angleSnap = settings.angleSnap ? 1 : 0;
+  buf[EEPROM_ADDR.ANGLE_SNAPPING] = angleSnap;
+  buf[EEPROM_ADDR.ANGLE_SNAPPING + 1] = (0x55 - angleSnap) & 0xff;
+
+  const ripple = settings.ripple ? 1 : 0;
+  buf[EEPROM_ADDR.RIPPLE_CONTROL] = ripple;
+  buf[EEPROM_ADDR.RIPPLE_CONTROL + 1] = (0x55 - ripple) & 0xff;
+
+  const turnOffOnMove = settings.turnOffOnMove ? 1 : 0;
+  buf[EEPROM_ADDR.LIGHT_OFF_MOVE] = turnOffOnMove;
+  buf[EEPROM_ADDR.LIGHT_OFF_MOVE + 1] = (0x55 - turnOffOnMove) & 0xff;
   return buf;
 }
 
@@ -159,7 +190,7 @@ export function deserializeSettingsFromEEPROM(
     keys: { ...targetSettings.keys },
   };
 
-  result.profile = Math.max(0, Math.min(2, buf[EEPROM_ADDR.ACTIVE_PROFILE] ?? 0));
+  result.profile = Math.max(0, Math.min(2, targetSettings.profile ?? 0));
 
   const pCode = buf[EEPROM_ADDR.POLLING_RATE];
   if (POLLING_CODES[pCode]) {

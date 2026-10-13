@@ -48,14 +48,20 @@ describe('Settings Core & EEPROM Serialization', () => {
     initial.lighting.color = '#ff0055';
     const bytes = serializeSettingsToEEPROM(initial);
     expect(bytes.length).toBe(181);
-    expect(bytes[EEPROM_ADDR.ACTIVE_PROFILE]).toBe(2);
     expect(bytes[EEPROM_ADDR.POLLING_RATE]).toBe(0x02); // 500Hz
-    expect(bytes[EEPROM_ADDR.LOD]).toBe(2);
-    expect(bytes[EEPROM_ADDR.DEBOUNCE]).toBe(8);
-    expect(bytes[EEPROM_ADDR.SLEEP_MINUTES]).toBe(15);
+    expect(bytes[EEPROM_ADDR.POLLING_RATE + 1]).toBe(0x55 - 0x02); // checksum
+    expect(bytes[EEPROM_ADDR.STAGE_COUNT]).toBe(7);
+    expect(bytes[EEPROM_ADDR.STAGE_COUNT + 1]).toBe(0x55 - 7); // checksum
     expect(bytes[EEPROM_ADDR.CURRENT_DPI_IDX]).toBe(2);
+    expect(bytes[EEPROM_ADDR.CURRENT_DPI_IDX + 1]).toBe(0x55 - 2); // checksum
+    expect(bytes[EEPROM_ADDR.LOD]).toBe(2);
+    expect(bytes[EEPROM_ADDR.LOD + 1]).toBe(0x55 - 2); // checksum
+    expect(bytes[EEPROM_ADDR.DEBOUNCE]).toBe(8);
+    expect(bytes[EEPROM_ADDR.DEBOUNCE + 1]).toBe(0x55 - 8); // checksum
+    expect(bytes[EEPROM_ADDR.SLEEP_MINUTES]).toBe(15);
+    expect(bytes[EEPROM_ADDR.SLEEP_MINUTES + 1]).toBe(0x55 - 15); // checksum
 
-    const recovered = deserializeSettingsFromEEPROM(bytes);
+    const recovered = deserializeSettingsFromEEPROM(bytes, initial);
     expect(recovered.profile).toBe(2);
     expect(recovered.pollingRate).toBe(500);
     expect(recovered.lod).toBe(2);
