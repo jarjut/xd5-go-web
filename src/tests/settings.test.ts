@@ -6,6 +6,7 @@ import {
   SettingsManager,
   exportSettingsToJson,
   importSettingsFromJson,
+  normalizeKeyBindings,
 } from '../core/settings';
 import {
   EEPROM_ADDR,
@@ -109,6 +110,62 @@ describe('Settings Core & EEPROM Serialization', () => {
       sum = (sum + ledSlice[i]) & 0xFF;
     }
     expect(sum).toBe(0x55);
+  });
+
+  it('computes internal modulo-256 checksum for key matrix entries matching OEM driver', () => {
+    const settings = createDefaultSettings();
+    const bytes = serializeSettingsToEEPROM(settings);
+    for (let k = 1; k <= 6; k++) {
+      const base = EEPROM_ADDR.KEY_MATRIX + (k - 1) * 4;
+      const keySlice = bytes.slice(base, base + 4);
+      let sum = 0;
+      for (let i = 0; i < 4; i++) {
+        sum = (sum + keySlice[i]) & 0xFF;
+      }
+      expect(sum).toBe(0x55);
+    }
+  });
+
+  it('deserializes hardware key matrix with per-button internal checksum without corrupting action codes', () => {
+    const fakeHwEeprom = new Uint8Array(181);
+    fakeHwEeprom[EEPROM_ADDR.POLLING_RATE] = 0x01;
+    // Button 1: Left Click (0x01, 0x01, 0x00, checksum 0x53)
+    fakeHwEeprom[0x60] = 0x01; fakeHwEeprom[0x61] = 0x01; fakeHwEeprom[0x62] = 0x00; fakeHwEeprom[0x63] = 0x53;
+    // Button 2: Right Click (0x01, 0x02, 0x00, checksum 0x52)
+    fakeHwEeprom[0x64] = 0x01; fakeHwEeprom[0x65] = 0x02; fakeHwEeprom[0x66] = 0x00; fakeHwEeprom[0x67] = 0x52;
+    // Button 3: Middle Click (0x01, 0x04, 0x00, checksum 0x50)
+    fakeHwEeprom[0x68] = 0x01; fakeHwEeprom[0x69] = 0x04; fakeHwEeprom[0x6A] = 0x00; fakeHwEeprom[0x6B] = 0x50;
+    // Button 4: Back (0x01, 0x08, 0x00, checksum 0x4C)
+    fakeHwEeprom[0x6C] = 0x01; fakeHwEeprom[0x6D] = 0x08; fakeHwEeprom[0x6E] = 0x00; fakeHwEeprom[0x6F] = 0x4C;
+    // Button 5: Forward (0x01, 0x10, 0x00, checksum 0x44)
+    fakeHwEeprom[0x70] = 0x01; fakeHwEeprom[0x71] = 0x10; fakeHwEeprom[0x72] = 0x00; fakeHwEeprom[0x73] = 0x44;
+    // Button 6: DPI Loop / DPI + (0x02, 0x01, 0x00, checksum 0x52)
+    fakeHwEeprom[0x74] = 0x02; fakeHwEeprom[0x75] = 0x01; fakeHwEeprom[0x76] = 0x00; fakeHwEeprom[0x77] = 0x52;
+
+    const recovered = deserializeSettingsFromEEPROM(fakeHwEeprom);
+    expect(recovered.keys.key1).toBe('0x00000101');
+    expect(recovered.keys.key2).toBe('0x00000201');
+    expect(recovered.keys.key3).toBe('0x00000401');
+    expect(recovered.keys.key4).toBe('0x00000801');
+    expect(recovered.keys.key5).toBe('0x00001001');
+    expect(recovered.keys.key6).toBe('0x00000102');
+  });
+
+  it('normalizes key bindings with 4th-byte checksums', () => {
+    const normalized = normalizeKeyBindings({
+      key1: '0x53000101',
+      key2: '0x52000201',
+      key3: '0x50000401',
+      key4: '0x4c000801',
+      key5: '0x44001001',
+      key6: '0x52000102',
+    });
+    expect(normalized.key1).toBe('0x00000101');
+    expect(normalized.key2).toBe('0x00000201');
+    expect(normalized.key3).toBe('0x00000401');
+    expect(normalized.key4).toBe('0x00000801');
+    expect(normalized.key5).toBe('0x00001001');
+    expect(normalized.key6).toBe('0x00000102');
   });
   it('exports and imports profile settings JSON reliably', () => {
     const original = createDefaultSettings();

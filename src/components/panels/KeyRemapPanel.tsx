@@ -153,6 +153,11 @@ for (const cat of KEY_CATEGORIES) {
     ALL_KEY_OPTIONS_MAP[opt.value.toLowerCase()] = opt.label;
   }
 }
+export const normalizeKeyVal = (val?: string): string => {
+  if (!val) return '0x00000101';
+  const num = parseInt(val, 16);
+  return isNaN(num) ? val.toLowerCase() : '0x' + ((num & 0x00ffffff) >>> 0).toString(16).padStart(8, '0');
+};
 
 export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
   focusedButton,
@@ -193,7 +198,7 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
   };
 
   const hasLeftClick = Object.values(keys).some(
-    (v) => (v || '').toLowerCase() === '0x00000101'
+    (v) => normalizeKeyVal(v) === '0x00000101'
   );
 
   return (
@@ -235,7 +240,7 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
       {/* Buttons Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {BUTTON_DEFINITIONS.map((btn) => {
-          const currentVal = (keys[btn.keyName] || btn.defaultVal).toLowerCase();
+          const currentVal = normalizeKeyVal(keys[btn.keyName] || btn.defaultVal);
           const actionLabel = ALL_KEY_OPTIONS_MAP[currentVal] || currentVal;
           const isFocused = focusedButton === btn.id;
           const Icon = btn.Icon;

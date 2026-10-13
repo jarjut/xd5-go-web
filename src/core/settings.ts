@@ -31,6 +31,19 @@ export const DEFAULT_KEYS: KeyBindings = {
   key6: '0x00000302', // DPI Loop
 };
 
+export function normalizeKeyBindings(keys: KeyBindings): KeyBindings {
+  const normalized: KeyBindings = { ...keys };
+  for (let k = 1; k <= 6; k++) {
+    const keyName = `key${k}`;
+    const raw = keys[keyName] || DEFAULT_KEYS[keyName];
+    const num = parseInt(raw, 16);
+    if (!isNaN(num)) {
+      normalized[keyName] = '0x' + ((num & 0x00ffffff) >>> 0).toString(16).padStart(8, '0');
+    }
+  }
+  return normalized;
+};
+
 export const DEFAULT_LIGHTING: LightingSettings = {
   mode: 0,
   color: '#00e5ff',
@@ -86,10 +99,14 @@ export function serializeSettingsToEEPROM(settings: MouseSettings): Uint8Array {
   for (let k = 1; k <= 6; k++) {
     const val = parseInt(settings.keys[`key${k}`] || '0x00000101', 16);
     const base = EEPROM_ADDR.KEY_MATRIX + (k - 1) * 4;
-    buf[base] = val & 0xff;
-    buf[base + 1] = (val >> 8) & 0xff;
-    buf[base + 2] = (val >> 16) & 0xff;
-    buf[base + 3] = (val >> 24) & 0xff;
+    const b0 = val & 0xff;
+    const b1 = (val >> 8) & 0xff;
+    const b2 = (val >> 16) & 0xff;
+    const chk = (0x55 - b0 - b1 - b2) & 0xff;
+    buf[base] = b0;
+    buf[base + 1] = b1;
+    buf[base + 2] = b2;
+    buf[base + 3] = chk;
   }
 
   const led = settings.lighting || DEFAULT_LIGHTING;
@@ -188,12 +205,12 @@ export function deserializeSettingsFromEEPROM(
 
   for (let k = 1; k <= 6; k++) {
     const base = EEPROM_ADDR.KEY_MATRIX + (k - 1) * 4;
-    const dword =
-      buf[base] |
-      (buf[base + 1] << 8) |
-      (buf[base + 2] << 16) |
-      (buf[base + 3] << 24);
-    result.keys[`key${k}`] = '0x' + (dword >>> 0).toString(16).padStart(8, '0');
+    const b0 = buf[base];
+    const b1 = buf[base + 1];
+    const b2 = buf[base + 2];
+    // The 4th byte is the per-button checksum (sum mod 256 == 0x55), not part of key action code
+    const dword = (b0 | (b1 << 8) | (b2 << 16)) >>> 0;
+    result.keys[`key${k}`] = '0x' + dword.toString(16).padStart(8, '0');
   }
 
   const mode = buf[EEPROM_ADDR.LIGHTING];
@@ -240,6 +257,9 @@ export class SettingsManager {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object') {
             this.settings = { ...this.settings, ...parsed };
+            if (this.settings.keys) {
+              this.settings.keys = normalizeKeyBindings(this.settings.keys);
+            }
           }
         }
       } catch {
@@ -267,7 +287,7 @@ export class SettingsManager {
       ...this.settings,
       ...updates,
       lighting: updates.lighting ? { ...this.settings.lighting, ...updates.lighting } : this.settings.lighting,
-      keys: updates.keys ? { ...this.settings.keys, ...updates.keys } : this.settings.keys,
+      keys: updates.keys ? normalizeKeyBindings({ ...this.settings.keys, ...updates.keys }) : this.settings.keys,
     };
     this.save();
     return this.settings;

@@ -4,7 +4,7 @@ import { DeviceContext } from '../../context/DeviceContext';
 import { MouseSvg } from './MouseSvg';
 import { HotspotPin } from './HotspotPin';
 import { createDefaultSettings } from '../../core/settings';
-import { KEY_CATEGORIES } from '../panels/KeyRemapPanel';
+import { KEY_CATEGORIES, normalizeKeyVal } from '../panels/KeyRemapPanel';
 export interface MouseStageProps { activeZone?: number|null; hoveredButton?:number|null; onSelectButton?:(id:number)=>void; onHoverButton?:(id:number|null)=>void; className?:string; }
 const defaults = createDefaultSettings();
 const actionNames: Record<string, string> = Object.fromEntries(KEY_CATEGORIES.flatMap(category => category.options.map(option => [option.value.toLowerCase(), option.label])));
@@ -23,6 +23,6 @@ export const MouseStage: React.FC<MouseStageProps> = ({activeZone,hoveredButton,
   const onHover = (id:number|null) => { setHover(id); onHoverButton?.(id); };
   return <div className={className} data-testid="mouse-stage"><div className="stage-body">
     <MouseSvg activeButton={active} lighting={settings.lighting} onSelectButton={onSelectButton} onHoverButton={onHover} className="w-full h-full"/>
-    {buttons.map(button => <HotspotPin key={button.id} {...button} sublabel={actionNames[settings.keys[`key${button.id}`]?.toLowerCase()] ?? 'Custom action'} isActive={active === button.id} accentColor={settings.lighting.color} onClick={onSelectButton} onMouseEnter={onHover} onMouseLeave={() => onHover(null)}/>)}
+    {buttons.map(button => <HotspotPin key={button.id} {...button} sublabel={actionNames[normalizeKeyVal(settings.keys[`key${button.id}`])] ?? 'Custom action'} isActive={active === button.id} accentColor={settings.lighting.color} onClick={onSelectButton} onMouseEnter={onHover} onMouseLeave={() => onHover(null)}/>)}
   </div><div className="stage-readout" data-testid="dpi-stage-readout"><span className="w-2 h-2 rounded-full" style={{backgroundColor:stage.color}}/><div><div className="ui-muted">Stage {settings.activeDpiStage}</div><strong>{settings.separateXY ? `${stage.x} × ${stage.y} DPI` : `${stage.x} DPI`}</strong></div>{device?.isConnected && <span data-testid="device-connected-indicator" className="ui-muted">Connected</span>}</div></div>;
 };
