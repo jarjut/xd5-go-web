@@ -37,8 +37,7 @@ button.bg-brand { color:white; }
 .ui-muted { font-size:13px; color:var(--muted); }
 .ui-error { font-size:13px; color:#e66f7d; margin-top:10px; }
 :root[data-theme='light'] .ui-error { color:#a92539; }
-.profile-tools { justify-content:space-between; margin-bottom:20px; }
-.profile-modes { display:flex; gap:6px; }
+.profile-tools { justify-content:flex-end; margin-bottom:20px; }
 .sync-bar { position:sticky; bottom:12px; z-index:20; max-width:1424px; margin:20px auto 0; border:1px solid rgb(var(--border)); background:rgb(var(--surface)); padding:16px 22px; border-radius:12px; display:flex; align-items:center; justify-content:space-between; gap:18px; box-shadow:0 8px 28px #0002; }
 .sync-title { font-size:14px; font-weight:600; }
 .studio-tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid rgb(var(--border)); padding-bottom:10px; }

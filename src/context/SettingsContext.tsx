@@ -11,7 +11,6 @@ export interface SettingsContextType {
   resetToDefaults: () => void;
   applyToDevice: () => Promise<void>;
   readFromDevice: () => Promise<void>;
-  switchProfile: (profileIdx: number) => Promise<void>;
   exportProfileJson: () => string;
   importProfileJson: (jsonStr: string) => boolean;
   markClean: () => void;
@@ -45,14 +44,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
           if (prev.activeDpiStage === nextStage) return prev;
           const next = { ...prev, activeDpiStage: nextStage };
           settingsManager.updateSettings({ activeDpiStage: nextStage });
-          return next;
-        });
-      } else if (event.type === 'profile_change' && typeof event.profileIndex === 'number') {
-        const nextProfile = event.profileIndex;
-        setSettings((prev) => {
-          if (prev.profile === nextProfile) return prev;
-          const next = { ...prev, profile: nextProfile };
-          settingsManager.updateSettings({ profile: nextProfile });
           return next;
         });
       }
@@ -145,23 +136,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
     setIsDirty(false);
   }, [device, settings]);
 
-  const switchProfile = useCallback(
-    async (profileIdx: number) => {
-      const validIdx = Math.max(0, Math.min(2, profileIdx));
-      updateSettings({ profile: validIdx });
-      if (device?.protocol?.isConnected) {
-        try {
-          await device.protocol.setHardwareProfile(validIdx);
-          setTimeout(() => {
-            readFromDevice().catch(() => {});
-          }, 80);
-        } catch (err: unknown) {
-          console.error('Failed to set hardware profile:', err);
-        }
-      }
-    },
-    [device, readFromDevice, updateSettings]
-  );
 
   const exportProfileJson = useCallback((): string => {
     return JSON.stringify(settings, null, 2);
@@ -190,7 +164,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
       resetToDefaults,
       applyToDevice,
       readFromDevice,
-      switchProfile,
       exportProfileJson,
       importProfileJson,
       markClean,
@@ -203,7 +176,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
       resetToDefaults,
       applyToDevice,
       readFromDevice,
-      switchProfile,
       exportProfileJson,
       importProfileJson,
       markClean,

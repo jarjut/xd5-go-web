@@ -50,6 +50,26 @@ describe('SettingsContext', () => {
     expect(result.current.isDirty).toBe(true);
   });
 
+  it('exports and imports profile JSON via SettingsContext', () => {
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <SettingsProvider>{children}</SettingsProvider>
+    );
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    act(() => {
+      result.current.updateSettings({ debounce: 4 });
+    });
+
+    const exported = result.current.exportProfileJson();
+    expect(exported).toContain('"debounce": 4');
+
+    act(() => {
+      const success = result.current.importProfileJson(JSON.stringify({ debounce: 16 }));
+      expect(success).toBe(true);
+    });
+
+    expect(result.current.settings.debounce).toBe(16);
+  });
   it('throws error when useSettings is used outside SettingsProvider', () => {
     expect(() => {
       renderHook(() => useSettings());
