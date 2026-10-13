@@ -1,0 +1,106 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import type { HIDInputReportEvent } from '../types/protocol';
+import { XD5Protocol } from '../core/protocol';
+import { createDefaultSettings, serializeSettingsToEEPROM } from '../core/settings';
+import { SettingsSession } from '../core/settingsSession';
+import { HardwareSync } from '../core/hardwareSync';
+import { DeviceProvider, useDevice } from '../context/DeviceContext';
+import { SettingsProvider, useSettings } from '../context/SettingsContext';
+import { SimulatedHid } from './simulatedHid';
+
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+describe('simulated XD5 workflow', () => {
+  it('reads actual HID responses, gates the workspace, writes encoded chunks and commits flash', async () => {
+    vi.useFakeTimers();
+    const hid = new SimulatedHid(serializeSettingsToEEPROM({ ...createDefaultSettings(), pollingRate: 500, debounce: 16 }));
+    const protocol = new XD5Protocol();
+    protocol.device = hid;
+    hid.addEventListener('inputreport', (event) => protocol.handleInputReport(event as HIDInputReportEvent));
+    const wrapper = ({ children }: { children: ReactNode }) => <DeviceProvider protocol={protocol}><SettingsProvider>{children}</SettingsProvider></DeviceProvider>;
+    const { result, unmount } = renderHook(() => ({ settings: useSettings(), device: useDevice() }), { wrapper });
+    expect(result.current.device.isConnected).toBe(true);
+    expect(result.current.settings.isLoadedFromDevice).toBe(false);
+    act(() => result.current.settings.updateSettings({ debounce: 4 }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(result.current.settings.isLoadedFromDevice).toBe(true);
+    expect(result.current.settings.settings.pollingRate).toBe(500);
+    expect(result.current.settings.settings.debounce).toBe(16);
+    expect(hid.reports.filter((packet) => packet[1] === 0x08)).toHaveLength(19);
+    act(() => result.current.settings.updateSettings({ debounce: 4, pollingRate: 125 }));
+    expect(result.current.settings.isDirty).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(result.current.settings.isDirty).toBe(false);
+    expect(hid.commits).toBe(1);
+    expect(hid.flash[0]).toBe(8);
+    expect(hid.flash[1]).toBe(0x4d);
+    expect(hid.flash[0xa9]).toBe(4);
+    expect(hid.flash[0xaa]).toBe(0x51);
+    const writes = hid.reports.filter((packet) => packet[1] === 0x07);
+    expect(writes).toHaveLength(19);
+    expect(Array.from(writes[0].subarray(0, 8))).toEqual([8, 7, 0, 0, 0, 10, 8, 0x4d]);
+    expect(Array.from(writes[18].subarray(0, 6))).toEqual([8, 7, 0, 0, 180, 1]);
+    for (const packet of writes) expect(packet.reduce((sum, byte) => sum + byte, 0) & 0xff).toBe(0x55);
+    expect(hid.reports[hid.reports.length - 1]?.[1]).toBe(9);
+    await act(async () => {
+      result.current.device.disconnect();
+      await Promise.resolve();
+    });
+    expect(result.current.settings.isLoadedFromDevice).toBe(false);
+    unmount();
+  });
+
+  it('keeps a failed initial HID read unavailable until an explicit retry succeeds', async () => {
+    vi.useFakeTimers();
+    const hid = new SimulatedHid(new Uint8Array(181));
+    const protocol = new XD5Protocol();
+    protocol.device = hid;
+    hid.addEventListener('inputreport', (event) => protocol.handleInputReport(event as HIDInputReportEvent));
+    const session = new SettingsSession();
+    const connecting = session.connect(new HardwareSync(protocol));
+    const failed = expect(connecting).rejects.toThrow(/all-zero/i);
+    await vi.advanceTimersByTimeAsync(400);
+    await failed;
+    expect(session.getSnapshot().isLoadedFromDevice).toBe(false);
+    expect(hid.reports.filter((packet) => packet[1] === 7)).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(hid.reports.filter((packet) => packet[1] === 8)).toHaveLength(19);
+    hid.eeprom.set(serializeSettingsToEEPROM({ ...createDefaultSettings(), debounce: 20 }));
+    const retrying = session.readFromDevice();
+    await vi.advanceTimersByTimeAsync(400);
+    await retrying;
+    expect(session.getSnapshot().isLoadedFromDevice).toBe(true);
+    expect(session.getSnapshot().settings.debounce).toBe(20);
+    expect(session.getSnapshot().error).toBe(null);
+    session.disconnect();
+  });
+
+  it('stops a partially sent old transfer before any more chunks or flash commit after reconnect', async () => {
+    vi.useFakeTimers();
+    const hid = new SimulatedHid(serializeSettingsToEEPROM(createDefaultSettings()));
+    const protocol = new XD5Protocol();
+    protocol.device = hid;
+    hid.addEventListener('inputreport', (event) => protocol.handleInputReport(event as HIDInputReportEvent));
+    const hardware = new HardwareSync(protocol);
+    const session = new SettingsSession();
+    const connecting = session.connect(hardware);
+    await vi.advanceTimersByTimeAsync(400);
+    await connecting;
+    session.updateSettings({ debounce: 4 });
+    const writing = session.applyToDevice();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(hid.reports.filter((packet) => packet[1] === 7)).toHaveLength(1);
+    session.disconnect();
+    const reconnecting = session.connect(hardware);
+    await vi.advanceTimersByTimeAsync(500);
+    await writing;
+    await reconnecting;
+    expect(hid.reports.filter((packet) => packet[1] === 7)).toHaveLength(1);
+    expect(hid.commits).toBe(0);
+    expect(session.getSnapshot().settings.debounce).toBe(12);
+    expect(session.getSnapshot().isDirty).toBe(false);
+    session.disconnect();
+  });
+});

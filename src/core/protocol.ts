@@ -177,6 +177,8 @@ export function selectPrimaryDevice(devices: HIDDevice[]): HIDDevice {
 }
 
 export class XD5Protocol {
+  private connectionGeneration = 0;
+  private readonly interfaceGenerations = new WeakMap<HIDDevice, number>();
   device: HIDDevice | null = null;
   openedDevices: HIDDevice[] = [];
   batteryTimer: TimerHandle | null = null;
@@ -244,6 +246,7 @@ export class XD5Protocol {
       throw new Error('WebHID API is not supported in this browser.');
     }
 
+    const generation = this.connectionGeneration;
     const requested = await navigator.hid.requestDevice({
       filters: [
         { vendorId: VID, productId: PID_WIRED },
@@ -271,50 +274,67 @@ export class XD5Protocol {
     }
 
     const primaryDevice = selectPrimaryDevice(allCandidates);
+    if (generation !== this.connectionGeneration) return null;
     return await this.open(primaryDevice, allCandidates);
   }
 
   async open(hidDevice: HIDDevice, allCandidateDevices: HIDDevice[] = [hidDevice]): Promise<HIDDevice> {
     this.close();
-
+    const generation = this.connectionGeneration;
     const devicesToOpen = allCandidateDevices.length > 0 ? allCandidateDevices : [hidDevice];
     const openedList: HIDDevice[] = [];
+    const attempted: HIDDevice[] = [];
 
-    for (const d of devicesToOpen) {
-      try {
-        if (!d.opened) {
-          await d.open();
+    try {
+      for (const device of devicesToOpen) {
+        if (generation !== this.connectionGeneration) throw new Error('Mouse connection changed.');
+        this.interfaceGenerations.set(device, generation);
+        attempted.push(device);
+        try {
+          if (!device.opened) await device.open();
+          if (generation !== this.connectionGeneration) throw new Error('Mouse connection changed.');
+          device.addEventListener('inputreport', (event) => {
+            if (generation === this.connectionGeneration) this.handleInputReport(event);
+          });
+          openedList.push(device);
+        } catch (error) {
+          if (generation !== this.connectionGeneration) throw new Error('Mouse connection changed.');
+          this.log(`Warning: Failed to open interface ${device.productName || 'HID'}: ${error}`, 'err');
         }
-        d.addEventListener('inputreport', (e) => this.handleInputReport(e));
-        openedList.push(d);
-      } catch (err) {
-        this.log(`Warning: Failed to open interface ${d.productName || 'HID'}: ${err}`, 'err');
       }
+
+      this.openedDevices = openedList;
+      this.device = hidDevice.opened ? hidDevice : (openedList[0] || hidDevice);
+      if (!this.device.opened) await this.device.open();
+      if (generation !== this.connectionGeneration) throw new Error('Mouse connection changed.');
+      const isWireless = this.device.productId === PID_WIRELESS;
+      this.log(
+        `Connected: ${this.device.productName || 'Fantech Helios Go XD5'} (${isWireless ? '2.4GHz Wireless' : 'Wired USB'}) [${openedList.length} interfaces opened]`,
+        'in'
+      );
+      await this.sendHandshake(true);
+      if (generation !== this.connectionGeneration) throw new Error('Mouse connection changed.');
+      await this.queryBattery();
+      if (generation !== this.connectionGeneration) throw new Error('Mouse connection changed.');
+      this.startBatteryPolling();
+      return this.device;
+    } catch (error) {
+      for (const device of attempted) {
+        // A newer attempt may have claimed the same WebHID object while this one awaited open.
+        if (this.interfaceGenerations.get(device) !== generation) continue;
+        this.interfaceGenerations.delete(device);
+        try { await device.close(); } catch { /* Release remaining interfaces even if one close fails. */ }
+      }
+      if (generation === this.connectionGeneration) {
+        this.device = null;
+        this.openedDevices = [];
+      }
+      throw error;
     }
-
-    this.openedDevices = openedList;
-    this.device = hidDevice.opened ? hidDevice : (openedList[0] || hidDevice);
-    if (!this.device.opened) {
-      await this.device.open();
-    }
-
-    const isWireless = this.device.productId === PID_WIRELESS;
-    this.log(
-      `Connected: ${this.device.productName || 'Fantech Helios Go XD5'} (${isWireless ? '2.4GHz Wireless' : 'Wired USB'}) [${openedList.length} interfaces opened]`,
-      'in'
-    );
-
-    // Initial handshake
-    await this.sendHandshake(true);
-    // Initial battery query
-    await this.queryBattery();
-
-    // Start battery polling
-    this.startBatteryPolling();
-    return this.device;
   }
 
   close(): void {
+    this.connectionGeneration++;
     clearInterval(this.batteryTimer as number);
     this.batteryTimer = null;
     for (const d of this.openedDevices) {
@@ -456,10 +476,11 @@ export class XD5Protocol {
     await this.writeEEPROM(EEPROM_ADDR.ACTIVE_PROFILE, [idx]);
   }
 
-  async writeEEPROM(startAddr: number, data: number[] | Uint8Array): Promise<void> {
+  async writeEEPROM(startAddr: number, data: number[] | Uint8Array, isCurrent: () => boolean = () => true): Promise<void> {
     let offset = 0;
     const arrayData = Array.isArray(data) ? data : Array.from(data);
     while (offset < arrayData.length) {
+      if (!isCurrent()) throw new Error('Device disconnected during EEPROM write.');
       const chunkLen = Math.min(10, arrayData.length - offset);
       const chunk = arrayData.slice(offset, offset + chunkLen);
       const addr = startAddr + offset;
@@ -471,12 +492,14 @@ export class XD5Protocol {
     }
   }
 
-  async readEEPROMChunk(addr: number, chunkLen: number, retries: number = 3): Promise<Uint8Array> {
+  async readEEPROMChunk(addr: number, chunkLen: number, retries: number = 3, isCurrent: () => boolean = () => true): Promise<Uint8Array> {
     if (this.mockEEPROM) {
       return this.mockEEPROM.subarray(addr, addr + chunkLen);
     }
     for (let attempt = 0; attempt < retries; attempt++) {
+      if (!isCurrent()) throw new Error('Device disconnected during EEPROM read.');
       const pkt = this.buildReadEEPROM(addr, chunkLen);
+      let cancelRead = () => {};
       const readPromise = new Promise<Uint8Array>((resolve, reject) => {
         const timer = setTimeout(() => {
           this.pendingReadResolvers.delete(addr);
@@ -487,15 +510,25 @@ export class XD5Protocol {
           clearTimeout(timer);
           resolve(data);
         });
+        cancelRead = () => {
+          clearTimeout(timer);
+          this.pendingReadResolvers.delete(addr);
+          resolve(new Uint8Array());
+        };
       });
 
-      await this.sendFeatureReport(pkt);
+      try {
+        await this.sendFeatureReport(pkt);
+      } catch (error) {
+        cancelRead();
+        throw error;
+      }
 
       try {
         const data = await readPromise;
         return data;
       } catch {
-        if (!this.isConnected) throw new Error('Device disconnected during EEPROM read.');
+        if (!isCurrent() || !this.isConnected) throw new Error('Device disconnected during EEPROM read.');
         this.log(`Retry ${attempt + 1}/${retries} reading EEPROM @ 0x${addr.toString(16).padStart(4, '0')}...`, 'err');
         await delay(35);
       }
@@ -503,14 +536,16 @@ export class XD5Protocol {
     throw new Error(`EEPROM read timed out @ 0x${addr.toString(16).padStart(4, '0')} after ${retries} attempts.`);
   }
 
-  async readEEPROM(startAddr: number, totalLen: number): Promise<Uint8Array> {
+  async readEEPROM(startAddr: number, totalLen: number, isCurrent: () => boolean = () => true): Promise<Uint8Array> {
     const result = new Uint8Array(totalLen);
     let offset = 0;
     while (offset < totalLen) {
+      if (!isCurrent()) throw new Error('Device disconnected during EEPROM read.');
       const chunkLen = Math.min(10, totalLen - offset);
       const addr = startAddr + offset;
       this.log(`Reading EEPROM @ 0x${addr.toString(16).padStart(4, '0')} (${chunkLen} bytes)...`);
-      const chunk = await this.readEEPROMChunk(addr, chunkLen);
+      const chunk = await this.readEEPROMChunk(addr, chunkLen, 3, isCurrent);
+      if (chunk.length !== chunkLen) throw new Error(`Incomplete EEPROM chunk (${chunk.length}/${chunkLen} bytes).`);
       result.set(chunk.subarray(0, chunkLen), offset);
       offset += chunkLen;
       await delay(15);

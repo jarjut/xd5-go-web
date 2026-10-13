@@ -3,7 +3,6 @@ import {
   createDefaultSettings,
   serializeSettingsToEEPROM,
   deserializeSettingsFromEEPROM,
-  SettingsManager,
   exportSettingsToJson,
   importSettingsFromJson,
   normalizeKeyBindings,
@@ -72,17 +71,12 @@ describe('Settings Core & EEPROM Serialization', () => {
     expect(recovered.lighting.mode).toBe(1);
   });
 
-  it('persists and loads settings via SettingsManager', () => {
-    const manager = new SettingsManager();
-    const settings = manager.getSettings();
-    expect(settings.pollingRate).toBe(1000);
-
-    manager.updateSettings({ debounce: 4, sleepMin: 5 });
-    expect(manager.getSettings().debounce).toBe(4);
-
-    const reloaded = new SettingsManager();
-    expect(reloaded.getSettings().debounce).toBe(4);
-    expect(reloaded.getSettings().sleepMin).toBe(5);
+  it('normalizes imported partial profiles without losing omitted DPI stages', () => {
+    const imported = importSettingsFromJson('{"dpiStages":[{"x":3200}],"keys":{"key1":"0x53000101"}}');
+    expect(imported.dpiStages).toHaveLength(7);
+    expect(imported.dpiStages[0].x).toBe(3200);
+    expect(imported.dpiStages[1].x).toBe(1600);
+    expect(imported.keys.key1).toBe('0x00000101');
   });
 
   it('serializes and deserializes streaming mode with OEM specific speed and brightness tables', () => {

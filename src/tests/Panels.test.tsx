@@ -3,10 +3,10 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { SensorPanel } from '../components/panels/SensorPanel';
 import { KeyRemapPanel } from '../components/panels/KeyRemapPanel';
 import { DiagnosticsPanel } from '../components/panels/DiagnosticsPanel';
-import { SettingsProvider, SettingsContext } from '../context/SettingsContext';
+import { ReadySettingsProvider as SettingsProvider } from './ReadySettingsProvider';
 import { DeviceProvider } from '../context/DeviceContext';
 import { createDefaultSettings } from '../core/settings';
-import type { SettingsContextType } from '../context/SettingsContext';
+import { SettingsSession } from '../core/settingsSession';
 
 describe('Performance and Remapping Panels', () => {
   beforeEach(() => {
@@ -174,16 +174,12 @@ describe('Performance and Remapping Panels', () => {
         key6: '0x00000302',
       };
 
-      const mockCtx: Partial<SettingsContextType> = {
-        settings: noClickSettings,
-        isDirty: false,
-        updateSettings: vi.fn(),
-      };
+      const session = new SettingsSession({ settings: noClickSettings });
 
       render(
-        <SettingsContext.Provider value={mockCtx as SettingsContextType}>
+        <SettingsProvider session={session}>
           <KeyRemapPanel focusedButton={null} onHoverButton={() => {}} />
-        </SettingsContext.Provider>
+        </SettingsProvider>
       );
 
       expect(screen.getByRole('alert')).toBeDefined();

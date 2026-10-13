@@ -271,86 +271,29 @@ export function deserializeSettingsFromEEPROM(
   return result;
 }
 
-export class SettingsManager {
-  settings: MouseSettings;
-  storageKey: string = 'xd5_mouse_settings';
-
-  constructor() {
-    this.settings = createDefaultSettings();
-    this.load();
-  }
-
-  load(): void {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const raw = localStorage.getItem(this.storageKey);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === 'object') {
-            this.settings = { ...this.settings, ...parsed };
-            if (this.settings.keys) {
-              this.settings.keys = normalizeKeyBindings(this.settings.keys);
-            }
-          }
-        }
-      } catch {
-        // Ignored
-      }
-    }
-  }
-
-  save(): void {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(this.storageKey, JSON.stringify(this.settings));
-      } catch {
-        // Ignored
-      }
-    }
-  }
-
-  getSettings(): MouseSettings {
-    return this.settings;
-  }
-
-  updateSettings(updates: Partial<MouseSettings>): MouseSettings {
-    this.settings = {
-      ...this.settings,
-      ...updates,
-      lighting: updates.lighting ? { ...this.settings.lighting, ...updates.lighting } : this.settings.lighting,
-      keys: updates.keys ? normalizeKeyBindings({ ...this.settings.keys, ...updates.keys }) : this.settings.keys,
-    };
-    this.save();
-    return this.settings;
-  }
-
-  resetToDefaults(): MouseSettings {
-    this.settings = createDefaultSettings();
-    this.save();
-    return this.settings;
-  }
-}
 
 export function exportSettingsToJson(settings: MouseSettings): string {
   return JSON.stringify(settings, null, 2);
 }
 
 export function importSettingsFromJson(jsonStr: string): MouseSettings {
-  const parsed = JSON.parse(jsonStr);
+  const parsed: unknown = JSON.parse(jsonStr);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Profile must be a settings object.');
+  }
+  const updates = parsed as Partial<MouseSettings>;
   const base = createDefaultSettings();
-  if (!parsed || typeof parsed !== 'object') return base;
-
+  if (updates.dpiStages !== undefined && (!Array.isArray(updates.dpiStages) || updates.dpiStages.length === 0)) {
+    throw new Error('Profile DPI stages must be a nonempty array.');
+  }
   return {
     ...base,
-    ...parsed,
-    profile: typeof parsed.profile === 'number' ? Math.max(0, Math.min(2, parsed.profile)) : base.profile,
-    dpiStages: Array.isArray(parsed.dpiStages)
-      ? parsed.dpiStages.slice(0, 7).map((st: Partial<DpiStage>, idx: number) => ({
-          ...base.dpiStages[idx],
-          ...st,
-        }))
+    ...updates,
+    profile: typeof updates.profile === 'number' ? Math.max(0, Math.min(2, updates.profile)) : base.profile,
+    dpiStages: updates.dpiStages
+      ? base.dpiStages.map((stage, index) => ({ ...stage, ...updates.dpiStages?.[index] }))
       : base.dpiStages,
-    lighting: parsed.lighting ? { ...base.lighting, ...parsed.lighting } : base.lighting,
-    keys: parsed.keys ? { ...base.keys, ...parsed.keys } : base.keys,
+    lighting: updates.lighting ? { ...base.lighting, ...updates.lighting } : base.lighting,
+    keys: updates.keys ? normalizeKeyBindings({ ...base.keys, ...updates.keys }) : base.keys,
   };
 }

@@ -3,7 +3,7 @@ import { Download, Upload } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 
 export function ProfileTools({ className = '' }: { className?: string }) {
-  const { exportProfileJson, importProfileJson } = useSettings();
+  const { exportProfileJson, importProfileJson, isReading } = useSettings();
   const fileInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
 
@@ -23,7 +23,7 @@ export function ProfileTools({ className = '' }: { className?: string }) {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file) return;
+    if (!file || isReading) return;
     setError('');
     const reader = new FileReader();
     reader.onload = () => {
@@ -51,6 +51,7 @@ export function ProfileTools({ className = '' }: { className?: string }) {
         </button>
         <button
           className="ui-button flex items-center gap-2"
+          disabled={isReading}
           onClick={() => fileInput.current?.click()}
           title="Import profile settings from JSON file"
         >
@@ -63,6 +64,7 @@ export function ProfileTools({ className = '' }: { className?: string }) {
           type="file"
           accept=".json"
           aria-label="Import profile file"
+          disabled={isReading}
           onChange={handleFileChange}
         />
       </div>

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { XD5Protocol } from '../core/protocol';
-import { serializeSettingsToEEPROM } from '../core/settings';
+import { HardwareSync } from '../core/hardwareSync';
 import type {
   HIDDevice,
   TransportType,
@@ -28,6 +28,8 @@ export interface DeviceContextType {
   protocol: XD5Protocol;
   lastEvent: DeviceEvent | null;
   subscribeDeviceEvent: (listener: (event: DeviceEvent) => void) => () => void;
+  hardwareSync?: HardwareSync;
+  connectionId?: number;
 }
 
 export const DeviceContext = createContext<DeviceContextType | null>(null);
@@ -42,6 +44,10 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
   protocol: customProtocol,
 }) => {
   const protocol = useMemo(() => customProtocol || new XD5Protocol(), [customProtocol]);
+  const hardwareSync = useMemo(() => new HardwareSync(protocol), [protocol]);
+  const connectionGeneration = useRef(0);
+  const syncCount = useRef(0);
+  const [connectionId, setConnectionId] = useState(0);
 
   const [device, setDevice] = useState<HIDDevice | null>(protocol.device);
   const [isConnected, setIsConnected] = useState<boolean>(protocol.isConnected);
@@ -85,6 +91,12 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
     const handleDisconnect = (e: Event) => {
       const hidEvt = e as { device?: HIDDevice };
       if (hidEvt.device === protocol.device) {
+        connectionGeneration.current++;
+        setConnectionId(connectionGeneration.current);
+        syncCount.current = 0;
+        hardwareSync.invalidate();
+        setIsConnecting(false);
+        setIsSyncing(false);
         protocol.close();
         setDevice(null);
         setIsConnected(false);
@@ -105,33 +117,50 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
         navigator.hid.removeEventListener('disconnect', handleDisconnect);
       }
     };
-  }, [protocol]);
+  }, [protocol, hardwareSync]);
 
   const connect = useCallback(async () => {
+    const generation = ++connectionGeneration.current;
+    setConnectionId(generation);
+    syncCount.current = 0;
+    hardwareSync.invalidate();
+    protocol.close();
+    setDevice(null);
+    setIsConnected(false);
+    setTransport('disconnected');
+    setBattery(null);
     setIsConnecting(true);
     try {
       const openedDevice = await protocol.requestAndOpen();
+      if (generation !== connectionGeneration.current) return;
       if (openedDevice) {
         setDevice(openedDevice);
         setIsConnected(protocol.isConnected);
         setTransport(protocol.transport);
       }
     } catch (err: unknown) {
+      if (generation !== connectionGeneration.current) return;
       const msg = err instanceof Error ? err.message : String(err);
       protocol.log(`Connection error: ${msg}`, 'err');
       throw err;
     } finally {
-      setIsConnecting(false);
+      if (generation === connectionGeneration.current) setIsConnecting(false);
     }
-  }, [protocol]);
+  }, [protocol, hardwareSync]);
 
   const disconnect = useCallback(() => {
+    connectionGeneration.current++;
+    setConnectionId(connectionGeneration.current);
+    syncCount.current = 0;
+    hardwareSync.invalidate();
+    setIsConnecting(false);
+    setIsSyncing(false);
     protocol.close();
     setDevice(null);
     setIsConnected(false);
     setTransport('disconnected');
     setBattery(null);
-  }, [protocol]);
+  }, [protocol, hardwareSync]);
 
   const sendHandshake = useCallback(
     async (active: boolean = true) => {
@@ -144,37 +173,33 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
     await protocol.queryBattery();
   }, [protocol]);
 
-  const applySettingsToHardware = useCallback(
-    async (settings: MouseSettings) => {
-      if (!protocol.isConnected) {
-        throw new Error('Mouse is not connected.');
-      }
-      setIsSyncing(true);
-      try {
-        const bytes = serializeSettingsToEEPROM(settings);
-        await protocol.writeEEPROM(0x00, bytes);
-        await protocol.commitFlash();
-        protocol.log('Settings successfully applied to hardware and committed to flash.', 'in');
-      } finally {
-        setIsSyncing(false);
-      }
-    },
-    [protocol]
-  );
-
-  const readSettingsFromHardware = useCallback(async (): Promise<Uint8Array> => {
-    if (!protocol.isConnected) {
-      throw new Error('Mouse is not connected.');
-    }
+  const applySettingsToHardware = useCallback(async (settings: MouseSettings) => {
+    const generation = connectionGeneration.current;
+    syncCount.current++;
     setIsSyncing(true);
     try {
-      const bytes = await protocol.readEEPROM(0x00, 181);
-      protocol.log(`Read ${bytes.length} bytes from hardware EEPROM.`, 'in');
-      return bytes;
+      await hardwareSync.write(settings);
     } finally {
-      setIsSyncing(false);
+      if (generation === connectionGeneration.current) {
+        syncCount.current--;
+        setIsSyncing(syncCount.current > 0);
+      }
     }
-  }, [protocol]);
+  }, [hardwareSync]);
+
+  const readSettingsFromHardware = useCallback(async (): Promise<Uint8Array> => {
+    const generation = connectionGeneration.current;
+    syncCount.current++;
+    setIsSyncing(true);
+    try {
+      return await hardwareSync.readBytes();
+    } finally {
+      if (generation === connectionGeneration.current) {
+        syncCount.current--;
+        setIsSyncing(syncCount.current > 0);
+      }
+    }
+  }, [hardwareSync]);
 
   const clearLogs = useCallback(() => {
     setLogs([]);
@@ -206,6 +231,8 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
       protocol,
       lastEvent,
       subscribeDeviceEvent,
+      hardwareSync,
+      connectionId,
     }),
     [
       isConnected,
@@ -223,6 +250,8 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
       protocol,
       lastEvent,
       subscribeDeviceEvent,
+      hardwareSync,
+      connectionId,
     ]
   );
 

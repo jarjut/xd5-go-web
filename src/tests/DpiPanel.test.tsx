@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DpiPanel } from '../components/panels/DpiPanel';
 import { LightingPanel } from '../components/panels/LightingPanel';
-import { SettingsProvider } from '../context/SettingsContext';
+import { ReadySettingsProvider as SettingsProvider } from './ReadySettingsProvider';
 
 describe('DpiPanel', () => {
   beforeEach(() => {

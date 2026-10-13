@@ -15,9 +15,13 @@ npm run dev
 
 Open the local URL printed by Vite. For a production preview, run `npm run build` and `npm run preview`.
 
-The interface starts dark. Use Light/Dark in the header to switch appearance; the choice is saved separately from mouse settings. The large XD5 view stays available across desktop tabs, with a compact view above settings on small screens. The SVG is independently authored against XD5 product references; no vendor photograph is bundled.
+The app opens on a connection screen. Connect your XD5 by USB or its wireless receiver, select **Connect mouse**, and grant browser access. Configuration remains unavailable until the mouse's current settings have been read successfully. Failed connections or initial reads show a retry action; unsupported browsers show Chrome/Edge guidance.
 
-Connect the mouse, then use **Read from mouse** to load its settings. Edits are saved locally but are not written to hardware until **Save to mouse** completes. Changing theme never changes mouse settings. Select a numbered mouse button to open its binding under **Buttons**. Other tabs are **DPI**, **Lights**, **Sensor** and **Device log**.
+Edits are held in memory and automatically written to the mouse after a short debounce, then committed to flash. The status bar distinguishes pending changes, synchronization, success, and failure. Failed writes remain dirty and can be retried. **Reload from mouse** replaces the draft and asks for confirmation if edits are pending.
+
+Mouse settings are not stored in browser storage. Refreshing, disconnecting, or reconnecting discards pending edits; every connection starts with a fresh hardware read. Use JSON export/import in the connected workspace for explicit backups. Only the appearance preference is persisted locally.
+
+The interface starts dark. Use Light/Dark in the connected header to switch appearance without changing mouse settings. Select a numbered mouse button to open its binding under **Buttons**. Other tabs are **DPI**, **Lights**, **Sensor**, and **Device log**. The XD5 SVG is independently authored against product references; no vendor photograph is bundled.
 
 ---
 
@@ -85,10 +89,10 @@ $$\text{buf}[16] = \left(0x55 - \sum_{i=0}^{15} \text{buf}[i]\right) \pmod{256}$
 
 ## 🎨 Project Features
 
-1. **Hardware profiles and backup**:
-   - Switch among the three existing hardware modes.
-   - Export and import settings as JSON.
-   - Profile changes retain existing hardware synchronization behavior.
+1. **Connection-first configuration and backup**:
+   - Read current hardware settings before enabling configuration.
+   - Export and import settings as JSON after connection.
+   - Automatically synchronize edits with visible failure and retry status.
 2. **7-Stage DPI Studio**:
    - Custom stage selection, stage color pickers, and independent X / Y axis slider controls (50 to 19,000 DPI).
 3. **RGB Lighting Control**:
@@ -109,12 +113,10 @@ xd5-go-web/
 ├── src/
 │   ├── components/         # Layout, settings panels and interactive XD5 SVG
 │   ├── context/            # Device, settings and separate UI theme state
-│   ├── core/               # WebHID protocol and EEPROM serialization
+│   ├── core/               # In-memory settings session, hardware synchronization and protocol
 │   ├── tests/              # Behavioral regression tests
-│   ├── App.tsx             # Persistent device/settings workspace
+│   ├── App.tsx             # Connection gate and device/settings workspace
 │   └── index.css           # Dark/light appearance and responsive layout
-├── js/                     # Legacy prototype, not the active app
-├── css/                    # Legacy prototype styles
 ├── index.html              # Vite entry page
 ├── package.json            # Development, build and test commands
 └── README.md               # Usage and hardware protocol documentation
