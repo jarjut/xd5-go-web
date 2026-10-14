@@ -75,7 +75,7 @@ describe('SettingsSession', () => {
     }
     expect(writes.map((settings) => settings.debounce)).toEqual([4, 16]);
     expect(session.getSnapshot().isDirty).toBe(false);
-    expect(protocol.commitFlash).toHaveBeenCalledTimes(2);
+    expect(protocol.commitFlash).not.toHaveBeenCalled();
   });
 
   it('invalidates pending reads and discards drafts and debounce work on disconnect/reconnect', async () => {
@@ -136,11 +136,11 @@ describe('SettingsSession', () => {
     const { protocol, hardware } = connectedHardware();
     const session = new SettingsSession();
     await session.connect(hardware);
-    vi.mocked(protocol.commitFlash).mockRejectedValueOnce(new Error('Flash failed'));
+    vi.mocked(protocol.writeEEPROM).mockRejectedValueOnce(new Error('Write failed'));
     session.updateSettings({ debounce: 4 });
     await vi.advanceTimersByTimeAsync(150);
     expect(session.getSnapshot().isDirty).toBe(true);
-    expect(session.getSnapshot().error).toBe('Flash failed');
+    expect(session.getSnapshot().error).toBe('Write failed');
     await vi.advanceTimersByTimeAsync(1000);
     expect(protocol.writeEEPROM).toHaveBeenCalledTimes(1);
     await session.applyToDevice();
@@ -175,6 +175,7 @@ describe('SettingsSession', () => {
     await vi.advanceTimersByTimeAsync(150);
     expect(session.getSnapshot().isDirty).toBe(false);
     expect(vi.mocked(protocol.writeEEPROM).mock.calls.map(([addr, bytes]) => addr === 0 ? bytes[0xa9] : bytes[0xa9 - addr])).toEqual([8, 12]);
+    expect(protocol.commitFlash).toHaveBeenCalledTimes(2);
     session.disconnect();
   });
 

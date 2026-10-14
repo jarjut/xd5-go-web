@@ -13,7 +13,7 @@ import { SimulatedHid } from './simulatedHid';
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('simulated XD5 workflow', () => {
-  it('reads actual HID responses, gates the workspace, writes encoded chunks and commits flash', async () => {
+  it('reads actual HID responses, gates the workspace, and writes encoded chunks to SRAM', async () => {
     vi.useFakeTimers();
     const hid = new SimulatedHid(serializeSettingsToEEPROM({ ...createDefaultSettings(), pollingRate: 500, debounce: 16 }));
     const protocol = new XD5Protocol();
@@ -33,17 +33,17 @@ describe('simulated XD5 workflow', () => {
     expect(result.current.settings.isDirty).toBe(true);
     await act(async () => { await vi.advanceTimersByTimeAsync(500); });
     expect(result.current.settings.isDirty).toBe(false);
-    expect(hid.commits).toBe(1);
-    expect(hid.flash[0]).toBe(8);
-    expect(hid.flash[1]).toBe(0x4d);
-    expect(hid.flash[0xa9]).toBe(4);
-    expect(hid.flash[0xaa]).toBe(0x51);
+    expect(hid.commits).toBe(0);
+    expect(hid.eeprom[0]).toBe(8);
+    expect(hid.eeprom[1]).toBe(0x4d);
+    expect(hid.eeprom[0xa9]).toBe(4);
+    expect(hid.eeprom[0xaa]).toBe(0x51);
     const writes = hid.reports.filter((packet) => packet[1] === 0x07);
     expect(writes).toHaveLength(2);
     expect(Array.from(writes[0].subarray(0, 8))).toEqual([8, 7, 0, 0, 0, 2, 8, 0x4d]);
     expect(Array.from(writes[1].subarray(0, 8))).toEqual([8, 7, 0, 0, 0xa9, 2, 4, 0x51]);
     for (const packet of writes) expect(packet.reduce((sum, byte) => sum + byte, 0) & 0xff).toBe(0x55);
-    expect(hid.reports[hid.reports.length - 1]?.[1]).toBe(9);
+    expect(hid.reports[hid.reports.length - 1]?.[1]).toBe(7);
     await act(async () => {
       result.current.device.disconnect();
       await Promise.resolve();

@@ -74,7 +74,7 @@ export class HardwareSync {
     return this.transfer((isCurrent) => this.readValidated(isCurrent));
   }
 
-  write(settings: MouseSettings): Promise<void> {
+  write(settings: MouseSettings, commitFlash: boolean = false): Promise<void> {
     const bytes = serializeSettingsToEEPROM(settings, this.baselineBytes || undefined);
     return this.transfer(async (isCurrent) => {
       if (this.baselineBytes && this.baselineBytes.length === 181) {
@@ -112,8 +112,20 @@ export class HardwareSync {
       }
       this.baselineBytes = new Uint8Array(bytes);
       if (!isCurrent()) throw new Error('Mouse connection changed.');
+      if (commitFlash) {
+        await this.protocol.commitFlash();
+        this.protocol.log('Settings successfully applied to hardware and committed to flash.', 'in');
+      } else {
+        this.protocol.log('Settings successfully applied to hardware SRAM.', 'in');
+      }
+    });
+  }
+
+  commitFlash(): Promise<void> {
+    return this.transfer(async (isCurrent) => {
+      if (!isCurrent()) throw new Error('Mouse connection changed.');
       await this.protocol.commitFlash();
-      this.protocol.log('Settings successfully applied to hardware and committed to flash.', 'in');
+      this.protocol.log('Settings committed to flash.', 'in');
     });
   }
 }

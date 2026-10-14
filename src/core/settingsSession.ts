@@ -20,9 +20,9 @@ export class SettingsSession {
   private generation = 0;
   private revision = 0;
   private timer: TimerHandle | undefined;
+  private pendingCommitFlash = false;
   private writing: Promise<void> | null = null;
   private writeRequested = false;
-
   constructor(options?: { settings: MouseSettings }) {
     this.snapshot = {
       settings: options ? importSettingsFromJson(exportSettingsToJson(options.settings)) : createDefaultSettings(),
@@ -112,6 +112,7 @@ export class SettingsSession {
 
   resetToDefaults = (): void => {
     if (!this.snapshot.isLoadedFromDevice || this.snapshot.isReading) return;
+    this.pendingCommitFlash = true;
     this.updateSettings(createDefaultSettings());
   };
 
@@ -132,8 +133,9 @@ export class SettingsSession {
           this.writeRequested = false;
           const revision = this.revision;
           const settings = this.snapshot.settings;
-          await hardware.write(settings);
-          if (generation !== this.generation) return;
+          const shouldCommit = this.pendingCommitFlash;
+          this.pendingCommitFlash = false;
+          await hardware.write(settings, shouldCommit);
           // Only the exact committed revision becomes clean.
           if (revision === this.revision) this.publish({ isDirty: false, error: null });
         }
@@ -168,6 +170,7 @@ export class SettingsSession {
   importProfileJson = (json: string): boolean => {
     if (!this.snapshot.isLoadedFromDevice || this.snapshot.isReading) return false;
     try {
+      this.pendingCommitFlash = true;
       this.updateSettings(importSettingsFromJson(json));
       return true;
     } catch {

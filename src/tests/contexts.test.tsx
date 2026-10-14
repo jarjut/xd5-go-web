@@ -217,14 +217,13 @@ describe('DeviceContext', () => {
     expect(result.current.transport).toBe('disconnected');
   });
 
-  it('applies settings to hardware EEPROM and commits to flash', async () => {
+  it('applies settings to hardware EEPROM', async () => {
     const protocol = new XD5Protocol();
     const mockDevice = createMockHidDevice(false);
     protocol.device = mockDevice;
 
     const writeSpy = vi.spyOn(protocol, 'writeEEPROM').mockResolvedValue(undefined);
-    const commitSpy = vi.spyOn(protocol, 'commitFlash').mockResolvedValue(undefined);
-
+    vi.spyOn(protocol, 'commitFlash').mockResolvedValue(undefined);
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <DeviceProvider protocol={protocol}>{children}</DeviceProvider>
     );
@@ -258,7 +257,6 @@ describe('DeviceContext', () => {
     });
 
     expect(writeSpy).toHaveBeenCalledWith(0x00, expect.any(Uint8Array), expect.any(Function));
-    expect(commitSpy).toHaveBeenCalled();
   });
 
   it('reads settings from hardware EEPROM', async () => {
@@ -365,8 +363,7 @@ describe('Integrated Context Providers', () => {
     const fakeEeprom = serializeSettingsToEEPROM({ ...createDefaultSettings(), pollingRate: 500 });
     vi.spyOn(protocol, 'readEEPROM').mockResolvedValue(fakeEeprom);
     const writeSpy = vi.spyOn(protocol, 'writeEEPROM').mockResolvedValue(undefined);
-    const commitSpy = vi.spyOn(protocol, 'commitFlash').mockResolvedValue(undefined);
-
+    vi.spyOn(protocol, 'commitFlash').mockResolvedValue(undefined);
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <DeviceProvider protocol={protocol}>
         <SettingsProvider>{children}</SettingsProvider>
@@ -385,9 +382,7 @@ describe('Integrated Context Providers', () => {
     await act(async () => {
       await result.current.applyToDevice();
     });
-
     expect(writeSpy).toHaveBeenCalled();
-    expect(commitSpy).toHaveBeenCalled();
     expect(result.current.isDirty).toBe(false);
 
     // Read from device
