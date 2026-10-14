@@ -25,65 +25,16 @@ The interface starts dark. Use Light/Dark in the connected header to switch appe
 
 ---
 
-## 🔍 Reverse-Engineered Hardware Specification
+## 📚 Documentation & Technical Specifications
 
-### USB Identifiers
-- **Vendor ID (VID)**: `0x25A7` (Areson / SinoWealth MCU platform)
-- **Product ID (PID - Wired Mode)**: `0xFA7B`
-- **Product ID (PID - 2.4GHz Wireless Dongle)**: `0xFA7C`
-- **Report ID**: `0x08` (Feature Report)
+Comprehensive reverse-engineering documents, protocol specifications, memory maps, and integration guides are available in the [`docs/`](docs/) directory:
 
-### 17-Byte Packet Framing & Checksum
-Every command sent to the mouse is packaged as a 17-byte Feature Report with the following layout:
-- `buf[0]`: Report ID = `0x08`
-- `buf[1]`: Command ID (`0x02`, `0x04`, `0x07`, `0x08`, `0x09`, `0x10`)
-- `buf[2..15]`: Command arguments & payload
-- `buf[16]`: Checksum byte
-
-#### Checksum Equation (Extracted from VA `0x44816d` & `0x4492ae`)
-$$\sum_{i=0}^{16} \text{buf}[i] \equiv 0x55 \pmod{256}$$
-$$\text{buf}[16] = \left(0x55 - \sum_{i=0}^{15} \text{buf}[i]\right) \pmod{256}$$
-
----
-
-### Command Dispatch Table
-| Command | Name | Function |
-|---|---|---|
-| `0x02` | `TellDrvStatus` | Driver handshake (`buf[6] = 1` active, `0` closed). |
-| `0x04` | `GetPower` | Returns battery level (byte 9 = 0..100%) and charging flag (byte 10 = 0/1). |
-| `0x07` | `WriteEEPROM` | Writes up to 10 bytes at 16-bit address (`buf[2..3] = Addr (BE)`, `buf[4] = Len`, `buf[5..] = Data`). |
-| `0x08` | `ReadEEPROM` | Reads up to 10 bytes from 16-bit address (`buf[2..3] = Addr (BE)`, `buf[4] = Len`). |
-| `0x09` | `CommitFlash` | Flashes the staged EEPROM configuration into non-volatile memory. |
-| `0x0A` | `DeviceEvent` | Inbound notification pushed when physical DPI/Profile button is pressed on the mouse. |
-| `0x10` | `SetProfile` | Active hardware profile index switch (`buf[5] = Profile Index 0..3`). |
-
----
-
-### EEPROM Memory Map (`0x00 .. 0xB4`)
-| Address | Bytes | Function | Hardware Values / Encoding |
-|---|---|---|---|
-| `0x00` | 1 | USB Polling Rate | `0x01` = 1000 Hz, `0x02` = 500 Hz, `0x04` = 250 Hz, `0x08` = 125 Hz |
-| `0x01` | 1 | Hardware Profile ID | `0` = Profile 1, `1` = Profile 2, `2` = Profile 3, `3` = Profile 4 |
-| `0x02` | 1 | Stage Count | Number of active DPI stages (1..7) |
-| `0x04` | 1 | Current DPI Index | 0-indexed active stage pointer (`0` = Stage 1, etc.) |
-| `0x0A` | 1 | LOD (Lift-off Distance) | `0x01` = 1 mm, `0x02` = 2 mm |
-| `0x0C`–`0x27` | 28 | DPI Stages (7 × 4 B) | `[X_Raw, Y_Raw, Mul_Byte, Stage_Checksum]` |
-| `0x2C`–`0x47` | 28 | DPI Colors (7 × 4 B) | `[R, G, B, 0]` stage indicator colors |
-| `0x60`–`0x77` | 24 | Key Remap Matrix | 6 buttons × 4 bytes Little-Endian Dword |
-| `0xA0`–`0xA7` | 8 | Main RGB Lighting | `[Mode, R, G, B, SpeedByte, BrightnessByte, 0, 0]` |
-| `0xA9` | 1 | Debounce Delay | Switch debounce time in ms (4 to 20 ms, default 12 ms) |
-| `0xAD` | 1 | Auto-Sleep Timer | Idle delay in minutes (1 to 20 min, default 10 min) |
-| `0xAF` | 1 | Angle Snapping (FixLine) | `0` = Off, `1` = On |
-| `0xB1` | 1 | Ripple Control | `0` = Off, `1` = On (Jitter smoothing at >10,000 DPI) |
-| `0xB3` | 1 | Light Off On Move | `0` = Off, `1` = On (Saves wireless battery while tracking) |
-
----
-
-### PAW3370 DPI Math (Extracted from VA `0x40b850` & `0x40b980`)
-- **DPI $\le 10,000$**: `raw = Math.round(DPI / 50) - 1`, `mul = 0`
-- **$10,000 < \text{DPI} \le 19,000$**: `raw = Math.round(DPI / 100) - 1`, `mul = 2`
-- **Multiplier Byte**: `(yMul << 4) | (xMul & 0x0F)`
-- **Stage Checksum**: `(0x55 - xRaw - yRaw - mulByte) & 0xFF`
+* **[User Manual (`docs/USER_MANUAL.md`)](docs/USER_MANUAL.md)**: Official product specifications, hardware button layout, connectivity, and feature overview transcribed from the manufacturer manual.
+* **[Protocol Specification (`docs/PROTOCOL_SPECIFICATION.md`)](docs/PROTOCOL_SPECIFICATION.md)**: 17-byte USB HID framing, Modulo-256 sum-to-`0x55` checksum algorithm, two-tier storage model (SRAM vs Flash), and full command opcode reference (`0x01`–`0x10`).
+* **[EEPROM Memory Map (`docs/EEPROM_MEMORY_MAP.md`)](docs/EEPROM_MEMORY_MAP.md)**: Complete byte-level layout of all 3 memory zones: Core Configuration (`0x00..0xB4`), Extended Multimedia Keys (`0x100..0x2FF`), and Hardware Macro Storage (`0x300..0x1AFF`).
+* **[Feature Mechanisms (`docs/FEATURE_MECHANISMS.md`)](docs/FEATURE_MECHANISMS.md)**: PixArt PAW3370 DPI step conversion math, 7 Spectrum RGB modes with discrete speed/brightness lookup tables, 104 USB HID scancodes, and macro engine.
+* **[WebHID Integration Guide (`docs/WEBHID_INTEGRATION_GUIDE.md`)](docs/WEBHID_INTEGRATION_GUIDE.md)**: Developer guide and production TypeScript code blueprints for integrating the mouse directly into web applications.
+* **[Technical Documentation Index (`docs/README.md`)](docs/README.md)**: Quick navigation hub and high-level architecture diagram.
 
 ---
 
@@ -110,14 +61,21 @@ $$\text{buf}[16] = \left(0x55 - \sum_{i=0}^{15} \text{buf}[i]\right) \pmod{256}$
 ## 📁 File Structure
 ```
 xd5-go-web/
+├── docs/                  # Comprehensive reverse-engineering and protocol specifications
+│   ├── USER_MANUAL.md     # Transcribed official user manual
+│   ├── PROTOCOL_SPECIFICATION.md # USB HID framing, checksums & command reference
+│   ├── EEPROM_MEMORY_MAP.md      # Full 3-zone memory layout & validation rules
+│   ├── FEATURE_MECHANISMS.md     # DPI math, RGB tables, scancodes & macro engine
+│   ├── WEBHID_INTEGRATION_GUIDE.md # WebHID API implementation guide & TypeScript blueprints
+│   └── README.md          # Documentation index and architecture overview
 ├── src/
-│   ├── components/         # Layout, settings panels and interactive XD5 SVG
-│   ├── context/            # Device, settings and separate UI theme state
-│   ├── core/               # In-memory settings session, hardware synchronization and protocol
-│   ├── tests/              # Behavioral regression tests
-│   ├── App.tsx             # Connection gate and device/settings workspace
-│   └── index.css           # Dark/light appearance and responsive layout
-├── index.html              # Vite entry page
-├── package.json            # Development, build and test commands
-└── README.md               # Usage and hardware protocol documentation
+│   ├── components/        # Layout, settings panels and interactive XD5 SVG
+│   ├── context/           # Device, settings and separate UI theme state
+│   ├── core/              # In-memory settings session, hardware synchronization and protocol
+│   ├── tests/             # Behavioral regression tests
+│   ├── App.tsx            # Connection gate and device/settings workspace
+│   └── index.css          # Dark/light appearance and responsive layout
+├── index.html             # Vite entry page
+├── package.json           # Development, build and test commands
+└── README.md              # Project overview and quick start guide
 ```
