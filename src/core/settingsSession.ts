@@ -162,6 +162,18 @@ export class SettingsSession {
     this.publish({ settings: { ...this.snapshot.settings, activeDpiStage: stage } });
   };
 
+  receivePollingRate = (hz: number): void => {
+    if (!this.snapshot.isLoadedFromDevice || ![125, 250, 500, 1000].includes(hz)) return;
+    if (this.snapshot.settings.pollingRate === hz) return;
+    this.publish({ settings: { ...this.snapshot.settings, pollingRate: hz } });
+  };
+
+  receiveProfile = (profileIndex: number): void => {
+    if (!this.snapshot.isLoadedFromDevice || profileIndex < 0 || profileIndex > 3) return;
+    if (this.snapshot.settings.profile === profileIndex) return;
+    this.publish({ settings: { ...this.snapshot.settings, profile: profileIndex } });
+  };
+
   exportProfileJson = (): string => {
     if (!this.snapshot.isLoadedFromDevice) throw new Error('Connect and read the mouse before exporting settings.');
     return exportSettingsToJson(this.snapshot.settings);

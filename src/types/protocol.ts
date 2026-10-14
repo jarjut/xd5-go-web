@@ -88,9 +88,11 @@ export interface BatteryStatus {
 }
 
 export interface DeviceEvent {
-  type: 'dpi_change' | 'profile_change';
+  type: 'dpi_change' | 'profile_change' | 'polling_rate_change' | 'rgb_mode_change' | 'wireless_status';
   stage?: number;
   profileIndex?: number;
+  pollingRate?: number;
+  active?: boolean;
 }
 
 export type LogDirection = 'in' | 'out' | 'err' | 'system';

@@ -51,6 +51,13 @@ export class SimulatedHid extends EventTarget implements HIDDevice {
       if (this.failCommit) throw new Error('Simulated flash failure.');
       this.flash = this.eeprom.slice();
       this.commits++;
+    } else if (packet[1] === 0x03) {
+      const response = new Uint8Array(16);
+      response[0] = 0x03;
+      response[1] = 0x00;
+      const event = new Event('inputreport') as HIDInputReportEvent;
+      Object.assign(event, { reportId: 8, data: new DataView(response.buffer), device: this });
+      this.dispatchEvent(event);
     }
   }
 }

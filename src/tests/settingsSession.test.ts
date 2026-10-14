@@ -270,6 +270,27 @@ describe('SettingsSession', () => {
     expect(get).not.toHaveBeenCalled();
     expect(set).not.toHaveBeenCalled();
   });
+
+  it('updates polling rate and profile index from hardware events without dirtying draft', () => {
+    const session = new SettingsSession({ settings: createDefaultSettings() });
+    expect(session.getSnapshot().settings.pollingRate).toBe(1000);
+    expect(session.getSnapshot().settings.profile).toBe(0);
+
+    session.receivePollingRate(500);
+    expect(session.getSnapshot().settings.pollingRate).toBe(500);
+    expect(session.getSnapshot().isDirty).toBe(false);
+
+    session.receiveProfile(2);
+    expect(session.getSnapshot().settings.profile).toBe(2);
+    expect(session.getSnapshot().isDirty).toBe(false);
+
+    // Ignore invalid values
+    session.receivePollingRate(999);
+    expect(session.getSnapshot().settings.pollingRate).toBe(500);
+
+    session.receiveProfile(10);
+    expect(session.getSnapshot().settings.profile).toBe(2);
+  });
 });
 
 describe('HardwareSync', () => {

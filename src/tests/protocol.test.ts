@@ -10,12 +10,15 @@ import {
   PID_WIRED,
   PID_WIRELESS,
   REPORT_ID,
+  CMD_CHECK_PSD,
   CMD_HANDSHAKE,
+  CMD_GET_CONNECT_STATUS,
   CMD_GET_BATTERY,
   CMD_WRITE_EEPROM,
   CMD_READ_EEPROM,
   CMD_COMMIT_FLASH,
   CMD_DEVICE_EVENT,
+  CMD_ACK,
   CMD_SET_PROFILE,
   EEPROM_ADDR,
   POLLING_RATES,
@@ -160,12 +163,15 @@ describe('XD5Protocol reverse-engineering verification', () => {
     expect(PID_WIRELESS).toBe(0xFA7C);
     expect(REPORT_ID).toBe(0x08);
 
+    expect(CMD_CHECK_PSD).toBe(0x01);
     expect(CMD_HANDSHAKE).toBe(0x02);
+    expect(CMD_GET_CONNECT_STATUS).toBe(0x03);
     expect(CMD_GET_BATTERY).toBe(0x04);
     expect(CMD_WRITE_EEPROM).toBe(0x07);
     expect(CMD_READ_EEPROM).toBe(0x08);
     expect(CMD_COMMIT_FLASH).toBe(0x09);
     expect(CMD_DEVICE_EVENT).toBe(0x0A);
+    expect(CMD_ACK).toBe(0x0F);
     expect(CMD_SET_PROFILE).toBe(0x10);
 
     expect(EEPROM_ADDR.POLLING_RATE).toBe(0x00);
@@ -251,6 +257,64 @@ describe('XD5Protocol reverse-engineering verification', () => {
     proto.handleInputReport({ reportId: 0x08, data: new DataView(profPkt.buffer) });
 
     expect(events).toContainEqual({ type: 'profile_change', profileIndex: 1 });
+  });
+
+  it('parses wireless connection status response (CMD 0x03)', () => {
+    const proto = new XD5Protocol();
+    const events: DeviceEvent[] = [];
+    proto.onDeviceEvent = (evt) => {
+      events.push(evt);
+    };
+
+    // Active link response: byte[0]=0x03, byte[1]=0x00
+    const activePkt = new Uint8Array(16);
+    activePkt[0] = CMD_GET_CONNECT_STATUS;
+    activePkt[1] = 0x00;
+    proto.handleInputReport({ reportId: 0x08, data: new DataView(activePkt.buffer) });
+
+    expect(events).toContainEqual({ type: 'wireless_status', active: true });
+
+    // Offline link response: byte[0]=0x03, byte[1]=0x01
+    const offlinePkt = new Uint8Array(16);
+    offlinePkt[0] = CMD_GET_CONNECT_STATUS;
+    offlinePkt[1] = 0x01;
+    proto.handleInputReport({ reportId: 0x08, data: new DataView(offlinePkt.buffer) });
+
+    expect(events).toContainEqual({ type: 'wireless_status', active: false });
+  });
+
+  it('dispatches physical hardware events for polling rate, profile, and RGB mode buttons', () => {
+    const proto = new XD5Protocol();
+    const events: DeviceEvent[] = [];
+    proto.onDeviceEvent = (evt) => {
+      events.push(evt);
+    };
+
+    // CMD 0x0A with flags & 2 (Polling rate change: code 2 -> 500Hz)
+    const ratePkt = new Uint8Array(16);
+    ratePkt[0] = CMD_DEVICE_EVENT;
+    ratePkt[5] = 0x02;
+    ratePkt[7] = 2; // code 2 = 500Hz
+    proto.handleInputReport({ reportId: 0x08, data: new DataView(ratePkt.buffer) });
+
+    expect(events).toContainEqual({ type: 'polling_rate_change', pollingRate: 500 });
+
+    // CMD 0x0A with flags & 4 (Dedicated profile switch: profile 3 -> index 2)
+    const profPkt = new Uint8Array(16);
+    profPkt[0] = CMD_DEVICE_EVENT;
+    profPkt[5] = 0x04;
+    profPkt[9] = 2; // profile index 2 (Profile 3)
+    proto.handleInputReport({ reportId: 0x08, data: new DataView(profPkt.buffer) });
+
+    expect(events).toContainEqual({ type: 'profile_change', profileIndex: 2 });
+
+    // CMD 0x0A with flags & 0x80 (Underside RGB mode button)
+    const rgbPkt = new Uint8Array(16);
+    rgbPkt[0] = CMD_DEVICE_EVENT;
+    rgbPkt[5] = 0x80;
+    proto.handleInputReport({ reportId: 0x08, data: new DataView(rgbPkt.buffer) });
+
+    expect(events).toContainEqual({ type: 'rgb_mode_change' });
   });
 
   it('selectPrimaryDevice prioritizes vendor interface with feature report 8', () => {

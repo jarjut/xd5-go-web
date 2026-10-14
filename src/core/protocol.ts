@@ -22,13 +22,16 @@ export const PID_WIRED = 0xfa7b;
 export const PID_WIRELESS = 0xfa7c;
 export const REPORT_ID = 0x08;
 
-export const CMD_HANDSHAKE    = 0x02; // TellDrvStatus (1 = active, 0 = exiting)
-export const CMD_GET_BATTERY  = 0x04; // Read battery & charging state
-export const CMD_WRITE_EEPROM = 0x07; // Write up to 10 bytes to mouse EEPROM
-export const CMD_READ_EEPROM  = 0x08; // Read up to 10 bytes from mouse EEPROM
-export const CMD_COMMIT_FLASH = 0x09; // Commit EEPROM buffer to flash memory
-export const CMD_DEVICE_EVENT = 0x0a; // Physical DPI/profile change push notification
-export const CMD_SET_PROFILE  = 0x10; // Hardware profile selector
+export const CMD_CHECK_PSD          = 0x01; // Pairing & challenge authentication
+export const CMD_HANDSHAKE          = 0x02; // TellDrvStatus (1 = active, 0 = exiting)
+export const CMD_GET_CONNECT_STATUS = 0x03; // Query 2.4 GHz wireless link status
+export const CMD_GET_BATTERY        = 0x04; // Read battery & charging state
+export const CMD_WRITE_EEPROM       = 0x07; // Write up to 10 bytes to mouse EEPROM
+export const CMD_READ_EEPROM        = 0x08; // Read up to 10 bytes from mouse EEPROM
+export const CMD_COMMIT_FLASH       = 0x09; // Commit EEPROM buffer to flash memory
+export const CMD_DEVICE_EVENT       = 0x0a; // Physical DPI/profile change push notification
+export const CMD_ACK                = 0x0f; // Hardware acknowledge packet
+export const CMD_SET_PROFILE        = 0x10; // Hardware profile selector
 
 // EEPROM Memory Map
 export const EEPROM_ADDR = {
@@ -416,6 +419,22 @@ export class XD5Protocol {
       }
     }
 
+    // Command 0x03 Wireless Link Status Response (PROTOCOL_SPECIFICATION.md)
+    const isConnectStatusResponse =
+      bytes[0] === CMD_GET_CONNECT_STATUS ||
+      (bytes.length >= 7 && bytes[1] === CMD_GET_CONNECT_STATUS) ||
+      (reportId === CMD_GET_CONNECT_STATUS && bytes.length >= 2);
+
+    if (isConnectStatusResponse) {
+      const offset = bytes[0] === CMD_GET_CONNECT_STATUS ? 0 : (bytes[1] === CMD_GET_CONNECT_STATUS ? 1 : -1);
+      const statusCode = offset >= 0 ? bytes[offset + 1] : bytes[0];
+      const active = statusCode === 0;
+      this.log(`RX [Wireless Link Status]: ${active ? 'Active' : 'Offline'} (code 0x${statusCode.toString(16)})`, 'in');
+      if (this.onDeviceEvent) {
+        this.onDeviceEvent({ type: 'wireless_status', active });
+      }
+    }
+
     // Command 0x04 Battery response (OemDrv.exe VA 0x449213 / 0x449218)
     const isBatteryResponse =
       bytes[0] === CMD_GET_BATTERY ||
@@ -431,9 +450,10 @@ export class XD5Protocol {
       }
     }
 
-    // Command 0x0A Physical Hardware Event (OemDrv.exe VA 0x447700..0x447745)
+    // Command 0x0A Physical Hardware Event (OemDrv.exe VA 0x447700..0x447745 & PROTOCOL_SPECIFICATION.md)
     if (bytes[0] === CMD_DEVICE_EVENT && bytes.length >= 7) {
       const flags = bytes[5];
+      // Bit 0 (0x01): DPI Stage change -> bytes[6] is 0-indexed stage (0..6)
       if ((flags & 0x01) !== 0) {
         const rawStage = bytes[6];
         const stage = rawStage + 1;
@@ -442,11 +462,35 @@ export class XD5Protocol {
           this.onDeviceEvent({ type: 'dpi_change', stage });
         }
       }
+      // Bit 1 (0x02): Polling rate change -> bytes[7] & 0x0f is rate code (1=1000, 2=500, 4=250, 8=125)
+      // Note: Also dispatches profile_change for backward compatibility with OemDrv VA 0x447700
       if ((flags & 0x02) !== 0 && bytes.length >= 8) {
-        const profileIndex = bytes[7] & 0x0f;
+        const val = bytes[7] & 0x0f;
+        const rateMap: Record<number, number> = { 1: 1000, 2: 500, 4: 250, 8: 125 };
+        const pollingRate = rateMap[val];
+        if (pollingRate !== undefined) {
+          this.log(`Hardware Polling Rate Switch: ${pollingRate}Hz (code 0x${val.toString(16)})`, 'in');
+          if (this.onDeviceEvent) {
+            this.onDeviceEvent({ type: 'polling_rate_change', pollingRate });
+          }
+        }
+        if (this.onDeviceEvent) {
+          this.onDeviceEvent({ type: 'profile_change', profileIndex: val });
+        }
+      }
+      // Bit 2 (0x04): Dedicated Profile switch -> bytes[9] (or bytes[7]) is profile index (0..3)
+      if ((flags & 0x04) !== 0 && bytes.length >= 8) {
+        const profileIndex = (bytes.length >= 10 ? bytes[9] : bytes[7]) & 0x0f;
         this.log(`Hardware Profile Button Pressed: Profile ${profileIndex + 1}`, 'in');
         if (this.onDeviceEvent) {
           this.onDeviceEvent({ type: 'profile_change', profileIndex });
+        }
+      }
+      // Bit 7 (0x80): Main RGB mode button on underside
+      if ((flags & 0x80) !== 0) {
+        this.log('Hardware RGB Button Pressed', 'in');
+        if (this.onDeviceEvent) {
+          this.onDeviceEvent({ type: 'rgb_mode_change' });
         }
       }
     }
@@ -463,6 +507,11 @@ export class XD5Protocol {
     await this.sendFeatureReport(pkt);
   }
 
+
+  async queryWirelessStatus(): Promise<void> {
+    const pkt = this.buildPacket(CMD_GET_CONNECT_STATUS);
+    await this.sendFeatureReport(pkt);
+  }
   startBatteryPolling(intervalMs: number = 30000): void {
     clearInterval(this.batteryTimer as number);
     this.batteryTimer = null;

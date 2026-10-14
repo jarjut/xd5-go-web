@@ -43,7 +43,13 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children, se
   useEffect(() => {
     if (!device?.subscribeDeviceEvent) return;
     return device.subscribeDeviceEvent((event) => {
-      if (event.type === 'dpi_change' && typeof event.stage === 'number') session.receiveDpiStage(event.stage);
+      if (event.type === 'dpi_change' && typeof event.stage === 'number') {
+        session.receiveDpiStage(event.stage);
+      } else if (event.type === 'polling_rate_change' && typeof event.pollingRate === 'number') {
+        session.receivePollingRate(event.pollingRate);
+      } else if (event.type === 'profile_change' && typeof event.profileIndex === 'number') {
+        session.receiveProfile(event.profileIndex);
+      }
     });
   }, [device?.subscribeDeviceEvent, session]);
 
