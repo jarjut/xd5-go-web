@@ -234,11 +234,11 @@ describe('XD5Protocol reverse-engineering verification', () => {
       events.push(evt);
     };
 
-    // CMD 0x0A with flags & 1 (DPI event, stage 3)
+    // CMD 0x0A with flags & 1 (DPI event, hardware sends 0-indexed stage 2 for Stage 3)
     const dpiPkt = new Uint8Array(16);
     dpiPkt[0] = CMD_DEVICE_EVENT;
     dpiPkt[5] = 0x01; // flags: DPI changed
-    dpiPkt[6] = 3;    // stage 3
+    dpiPkt[6] = 2;    // hardware 0-indexed 2 -> Stage 3
     proto.handleInputReport({ reportId: 0x08, data: new DataView(dpiPkt.buffer) });
 
     expect(events).toContainEqual({ type: 'dpi_change', stage: 3 });

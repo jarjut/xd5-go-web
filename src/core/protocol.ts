@@ -433,8 +433,9 @@ export class XD5Protocol {
     if (bytes[0] === CMD_DEVICE_EVENT && bytes.length >= 7) {
       const flags = bytes[5];
       if ((flags & 0x01) !== 0) {
-        const stage = bytes[6];
-        this.log(`Hardware DPI Button Pressed: Stage ${stage}`, 'in');
+        const rawStage = bytes[6];
+        const stage = rawStage + 1;
+        this.log(`Hardware DPI Button Pressed: Stage ${stage} (raw 0x${rawStage.toString(16)})`, 'in');
         if (this.onDeviceEvent) {
           this.onDeviceEvent({ type: 'dpi_change', stage });
         }
