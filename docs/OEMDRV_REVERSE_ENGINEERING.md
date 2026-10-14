@@ -96,8 +96,8 @@ $$\text{Packet}[16] = \left( 0x55 - \sum_{i=0}^{15} \text{Packet}[i] \right) \ \
 | `0x2C..0x4B` | 32 Bytes | 8 DPI Indicator Color Slots | 8 stages $\times$ 4 bytes: `[R, G, B, chk]`.<br>Color checksum formula: `(0x55 - R - G - B) & 0xff`.<br>Stage 8 slot requires fixed padding: `[0xff, 0xff, 0xff, 0x58]`. |
 | `0x4C..0x53` | 8 Bytes | DPI Effect / Indicator Mode | `0x4C`: Mode (`0`=Off, `1`=Breathing, `2`=Steady).<br>`0x4D`: `(0x55 - mode) & 0xff`. |
 | `0x54..0x5B` | 8 Bytes | DPI RGB Switch | Used when `ShowRGBSw=1`. |
-| `0x60..0x77` | 24 Bytes | Key Action Matrix (Buttons 1..6) | 6 buttons $\times$ 4-byte Little-Endian dword.<br>Bytes 0..2 = HID / Windows action code.<br>Byte 3 = `(0x55 - b0 - b1 - b2) & 0xff`. |
-| `0x78..0x9F` | 40 Bytes | Macro & Extended Bindings | Memory offsets pointing to macro definitions. |
+| `0x60..0x77` | 24 Bytes | Key Action Matrix (Buttons 1..6) | 6 buttons $\times$ 4-byte Little-Endian dword.<br>Bytes 0..2 = HID / Windows action code.<br>Byte 3 = `(0x55 - b0 - b1 - b2) & 0xff`.<br>See Section 4.1 for key code assignments. |
+| `0x78..0x9F` | 40 Bytes | Extended Buttons (7..16) | Additional button matrix entries (up to 16 buttons supported by MCU). |
 | `0xA0..0xA7` | 8 Bytes | Main Lighting Configuration | `[mode, R, G, B, speed, brightness, chk, 0x00]`.<br>Checksum formula: `(0x55 - mode - R - G - B - speed - brightness) & 0xff`.<br>Must be written as an atomic 7-byte block at offset `0xA0`. |
 | `0xA8` | 1 Byte | Padding | `0x55`. |
 | `0xA9..0xAA` | 2 Bytes | Button Debounce Time | Byte 0: Debounce time in ms (`4..20`).<br>Byte 1: `(0x55 - b0) & 0xff`. |
@@ -106,6 +106,38 @@ $$\text{Packet}[16] = \left( 0x55 - \sum_{i=0}^{15} \text{Packet}[i] \right) \ \
 | `0xAF..0xB0` | 2 Bytes | Angle Snapping (FixLine) | Byte 0: `0` (Off) or `1` (On).<br>Byte 1: `(0x55 - b0) & 0xff`. |
 | `0xB1..0xB2` | 2 Bytes | Ripple Control | Byte 0: `0` (Off) or `1` (On).<br>Byte 1: `(0x55 - b0) & 0xff`. |
 | `0xB3..0xB4` | 2 Bytes | Light Off on Moving | Byte 0: `0` (Off) or `1` (On).<br>Byte 1: `(0x55 - b0) & 0xff`. |
+| `0x100..0x1DF`| 224 Bytes| Extended Key Sequence Blocks | 6 blocks $\times$ 32 bytes (`0x100 + (btn - 1) * 0x20`).<br>Used whenever primary action code is `0x00000005`.<br>Payload format (8 bytes): `[count=2, 0x82, usageLo, usageHi, 0x42, usageLo, usageHi, chk]`. |
+
+### 4.1 Button Action Codes & Extended Mapping
+
+Areson MCU categorizes physical button events into two memory zones:
+
+1. **Direct Matrix Functions (`0x60..0x77`)**:
+   - **Left Click**: `0x00000101` (`[0x01, 0x01, 0x00, 0x53]`)
+   - **Right Click**: `0x00000201` (`[0x01, 0x02, 0x00, 0x52]`)
+   - **Middle Click**: `0x00000401` (`[0x01, 0x04, 0x00, 0x50]`)
+   - **Back Button**: `0x00000801` (`[0x01, 0x08, 0x00, 0x4C]`)
+   - **Forward Button**: `0x00001001` (`[0x01, 0x10, 0x00, 0x44]`)
+   - **Double Click**: `0x00023204` (`[0x04, 0x32, 0x02, 0x1D]`)
+   - **Three Click**: `0x00033204` (`[0x04, 0x32, 0x03, 0x1C]`)
+   - **Fire Key (Rapid)**: `(count << 16) | (delay << 8) | 0x04`
+   - **Disable Button**: `0x00000000` (`[0x00, 0x00, 0x00, 0x55]`)
+   - **DPI Loop**: `0x00000102` (`[0x02, 0x01, 0x00, 0x52]`) *(Default Button 6)*
+   - **DPI +**: `0x00000202` (`[0x02, 0x02, 0x00, 0x51]`)
+   - **DPI -**: `0x00000302` (`[0x02, 0x03, 0x00, 0x50]`)
+   - **DPI Lock (Sniper)**: `(rawDpi << 8) | 0x0A`
+   - **RGB Mode Switch**: `0x00000007` (`[0x07, 0x00, 0x00, 0x4E]`)
+   - **Polling Rate Switch**: `0x00000008` (`[0x08, 0x00, 0x00, 0x4D]`)
+   - **Profile Switch**: `0x00000009` (`[0x09, 0x00, 0x00, 0x4C]`)
+
+2. **Extended Multimedia & Consumer Actions (`0x00000005` in `0x60`, sequence in `0x100`)**:
+   Primary matrix at `0x60 + (btn - 1) * 4` is set to `[0x05, 0x00, 0x00, 0x50]`.
+   Extended block at `0x100 + (btn - 1) * 0x20` holds 8 bytes:
+   `[0x02, 0x82, usageLo, usageHi, 0x42, usageLo, usageHi, chk]`
+   - `0x82` = Consumer key DOWN
+   - `0x42` = Consumer key UP
+   - `usage` = 16-bit USB HID Consumer Usage (e.g. `0x00CD` Play/Pause, `0x00E9` Vol Up, `0x00EA` Vol Down, `0x00E2` Mute, `0x0192` Calculator, `0x0194` Explorer, `0x0223` Home).
+   - Checksum: `(0x55 - sum(bytes[0..6])) & 0xFF`.
 
 ---
 

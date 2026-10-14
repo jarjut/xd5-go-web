@@ -34,7 +34,7 @@ export const KEY_CATEGORIES: KeyCategory[] = [
       { value: '0x00000101', label: 'Left Click' },
       { value: '0x00000201', label: 'Right Click' },
       { value: '0x00000401', label: 'Middle Click' },
-      { value: '0x00002001', label: 'Double Click' },
+      { value: '0x00023204', label: 'Double Click' },
       { value: '0x00033204', label: 'Three Click' },
       { value: '0x00003204', label: 'Fire Key (Rapid Fire)' },
     ],
@@ -49,10 +49,10 @@ export const KEY_CATEGORIES: KeyCategory[] = [
   {
     category: 'Hardware Loop Functions',
     options: [
-      { value: '0x00000302', label: 'DPI Loop' },
-      { value: '0x00000102', label: 'DPI +' },
-      { value: '0x00000202', label: 'DPI -' },
-      { value: '0x000000ad', label: 'DPI Lock (Sniper)' },
+      { value: '0x00000102', label: 'DPI Loop' },
+      { value: '0x00000202', label: 'DPI +' },
+      { value: '0x00000302', label: 'DPI -' },
+      { value: '0x00000f0a', label: 'DPI Lock (Sniper)' },
       { value: '0x00000007', label: 'RGB Mode Switch' },
       { value: '0x00000008', label: 'Polling Rate Switch' },
       { value: '0x00000009', label: 'Profile Switch' },
@@ -62,20 +62,20 @@ export const KEY_CATEGORIES: KeyCategory[] = [
   {
     category: 'Multimedia & Windows',
     options: [
-      { value: '0x00000010', label: 'Play / Pause' },
-      { value: '0x00000011', label: 'Stop Play' },
-      { value: '0x00000012', label: 'Previous Track' },
-      { value: '0x00000013', label: 'Next Track' },
-      { value: '0x00000014', label: 'Volume Up' },
-      { value: '0x00000015', label: 'Volume Down' },
-      { value: '0x00000016', label: 'Mute' },
-      { value: '0x00000020', label: 'Home Page' },
-      { value: '0x00000021', label: 'Email' },
-      { value: '0x00000022', label: 'Calculator' },
-      { value: '0x00000023', label: 'File Explorer' },
-      { value: '0x00000024', label: 'Search' },
-      { value: '0x00000025', label: 'Refresh' },
-      { value: '0x00000026', label: 'Favorites' },
+      { value: '0x0000cd05', label: 'Play / Pause' },
+      { value: '0x0000b705', label: 'Stop Play' },
+      { value: '0x0000b605', label: 'Previous Track' },
+      { value: '0x0000b505', label: 'Next Track' },
+      { value: '0x0000e905', label: 'Volume Up' },
+      { value: '0x0000ea05', label: 'Volume Down' },
+      { value: '0x0000e205', label: 'Mute' },
+      { value: '0x00022305', label: 'Home Page' },
+      { value: '0x00018a05', label: 'Email' },
+      { value: '0x00019205', label: 'Calculator' },
+      { value: '0x00019405', label: 'File Explorer' },
+      { value: '0x00022105', label: 'Search' },
+      { value: '0x00022705', label: 'Refresh' },
+      { value: '0x00022a05', label: 'Favorites' },
     ],
   },
 ];
@@ -140,7 +140,7 @@ export const BUTTON_DEFINITIONS: ButtonDefinition[] = [
     id: 6,
     label: '6. DPI Loop Button',
     keyName: 'key6',
-    defaultVal: '0x00000302',
+    defaultVal: '0x00000102',
     eepromAddr: '0x74',
     description: 'Button behind the scroll wheel',
     Icon: Sliders,
@@ -153,10 +153,33 @@ for (const cat of KEY_CATEGORIES) {
     ALL_KEY_OPTIONS_MAP[opt.value.toLowerCase()] = opt.label;
   }
 }
+const LEGACY_KEY_MIGRATION: Record<string, string> = {
+  '0x00002001': '0x00023204',
+  '0x000000ad': '0x00000f0a',
+  '0x00000010': '0x0000cd05',
+  '0x00000011': '0x0000b705',
+  '0x00000012': '0x0000b605',
+  '0x00000013': '0x0000b505',
+  '0x00000014': '0x0000e905',
+  '0x00000015': '0x0000ea05',
+  '0x00000016': '0x0000e205',
+  '0x00000020': '0x00022305',
+  '0x00000021': '0x00018a05',
+  '0x00000022': '0x00019205',
+  '0x00000023': '0x00019405',
+  '0x00000024': '0x00022105',
+  '0x00000025': '0x00022705',
+  '0x00000026': '0x00022a05',
+};
+
 export const normalizeKeyVal = (val?: string): string => {
   if (!val) return '0x00000101';
+  const lower = val.toLowerCase();
+  if (LEGACY_KEY_MIGRATION[lower]) return LEGACY_KEY_MIGRATION[lower];
   const num = parseInt(val, 16);
-  return isNaN(num) ? val.toLowerCase() : '0x' + ((num & 0x00ffffff) >>> 0).toString(16).padStart(8, '0');
+  if (isNaN(num)) return lower;
+  const normalized = '0x' + ((num & 0x00ffffff) >>> 0).toString(16).padStart(8, '0');
+  return LEGACY_KEY_MIGRATION[normalized] || normalized;
 };
 
 export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
@@ -172,7 +195,7 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
     key3: '0x00000401',
     key4: '0x00000801',
     key5: '0x00001001',
-    key6: '0x00000302',
+    key6: '0x00000102',
   };
 
   const handleKeyChange = (keyName: string, newValue: string) => {
@@ -192,7 +215,7 @@ export const KeyRemapPanel: React.FC<KeyRemapPanelProps> = ({
         key3: '0x00000401',
         key4: '0x00000801',
         key5: '0x00001001',
-        key6: '0x00000302',
+        key6: '0x00000102',
       },
     });
   };

@@ -194,4 +194,41 @@ describe('Settings Core & EEPROM Serialization', () => {
     expect(imported.debounce).toBe(4);
     expect(imported.dpiStages[0].x).toBe(3200);
   });
+  it('serializes and deserializes extended multimedia keys into 0x100 blocks', () => {
+    const settings = createDefaultSettings();
+    settings.keys.key4 = '0x0000e905'; // Volume Up (Usage 0x00E9)
+    settings.keys.key5 = '0x00019205'; // Calculator (Usage 0x0192)
+
+    const bytes = serializeSettingsToEEPROM(settings);
+    expect(bytes.length).toBeGreaterThanOrEqual(0x1c0);
+
+    // Primary matrix at 0x6C (Button 4) and 0x70 (Button 5) must be 0x05 with checksum 0x50
+    expect(bytes[0x6c]).toBe(0x05);
+    expect(bytes[0x6d]).toBe(0x00);
+    expect(bytes[0x6e]).toBe(0x00);
+    expect(bytes[0x6f]).toBe(0x50);
+
+    expect(bytes[0x70]).toBe(0x05);
+    expect(bytes[0x71]).toBe(0x00);
+    expect(bytes[0x72]).toBe(0x00);
+    expect(bytes[0x73]).toBe(0x50);
+
+    // Extended block for Button 4 at 0x100 + 3 * 0x20 = 0x160
+    // Usage 0x00E9: [count=2, 0x82, 0xE9, 0x00, 0x42, 0xE9, 0x00]
+    expect(bytes[0x160]).toBe(0x02);
+    expect(bytes[0x161]).toBe(0x82);
+    expect(bytes[0x162]).toBe(0xe9);
+    expect(bytes[0x163]).toBe(0x00);
+    expect(bytes[0x164]).toBe(0x42);
+    expect(bytes[0x165]).toBe(0xe9);
+    expect(bytes[0x166]).toBe(0x00);
+    const extChk4 = (0x55 - 0x02 - 0x82 - 0xe9 - 0x00 - 0x42 - 0xe9 - 0x00) & 0xff;
+    expect(bytes[0x167]).toBe(extChk4);
+
+    // Deserialization round-trip
+    const recovered = deserializeSettingsFromEEPROM(bytes);
+    expect(recovered.keys.key4).toBe('0x0000e905');
+    expect(recovered.keys.key5).toBe('0x00019205');
+    expect(recovered.keys.key6).toBe('0x00000102');
+  });
 });

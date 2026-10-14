@@ -25,6 +25,8 @@ const REGISTER_BLOCKS: readonly RegisterBlock[] = [
   { start: 0xaf, length: 2 }, // Angle Snapping (FixLine)
   { start: 0xb1, length: 2 }, // Ripple Control
   { start: 0xb3, length: 2 }, // Light Off on Move
+  // Extended key blocks 1..6 (8 bytes each: count, downFlag, lo, hi, upFlag, lo, hi, checksum)
+  ...Array.from({ length: 6 }, (_, i) => ({ start: 0x100 + i * 0x20, length: 8 })),
 ];
 
 export class HardwareSync {
@@ -58,8 +60,26 @@ export class HardwareSync {
     if (!bytes.some((byte) => byte !== 0)) {
       throw new Error('Mouse EEPROM returned empty (all-zero) data. Hardware communication failed.');
     }
-    this.baselineBytes = new Uint8Array(bytes);
-    return bytes;
+
+    let fullBytes = bytes;
+    // If any button has action code 0x05 (Extended), fetch its extended 8-byte payload
+    const hasExtended = [0, 1, 2, 3, 4, 5].some((i) => bytes[0x60 + i * 4] === 0x05);
+    if (hasExtended) {
+      fullBytes = new Uint8Array(0x1c0);
+      fullBytes.set(bytes, 0);
+      for (let i = 0; i < 6; i++) {
+        if (bytes[0x60 + i * 4] === 0x05) {
+          const extAddr = 0x100 + i * 0x20;
+          const extChunk = await this.protocol.readEEPROMChunk(extAddr, 8, 3, isCurrent);
+          if (extChunk.length === 8) {
+            fullBytes.set(extChunk, extAddr);
+          }
+        }
+      }
+    }
+
+    this.baselineBytes = new Uint8Array(fullBytes);
+    return fullBytes;
   }
 
   read(): Promise<MouseSettings> {
@@ -77,7 +97,7 @@ export class HardwareSync {
   write(settings: MouseSettings, commitFlash: boolean = false): Promise<void> {
     const bytes = serializeSettingsToEEPROM(settings, this.baselineBytes || undefined);
     return this.transfer(async (isCurrent) => {
-      if (this.baselineBytes && this.baselineBytes.length === 181) {
+      if (this.baselineBytes && this.baselineBytes.length >= 181) {
         const writtenIndices = new Set<number>();
         for (const block of REGISTER_BLOCKS) {
           let hasDiff = false;
@@ -96,8 +116,11 @@ export class HardwareSync {
         }
 
         let sliceStart = -1;
-        for (let i = 0; i < 181; i++) {
-          if (!writtenIndices.has(i) && bytes[i] !== this.baselineBytes[i]) {
+        const checkLen = Math.max(bytes.length, this.baselineBytes.length);
+        for (let i = 0; i < checkLen; i++) {
+          const bVal = i < bytes.length ? bytes[i] : 0xff;
+          const baseVal = i < this.baselineBytes.length ? this.baselineBytes[i] : 0xff;
+          if (!writtenIndices.has(i) && bVal !== baseVal) {
             if (sliceStart === -1) sliceStart = i;
           } else if (sliceStart !== -1) {
             await this.protocol.writeEEPROM(sliceStart, bytes.subarray(sliceStart, i), isCurrent);
@@ -105,7 +128,7 @@ export class HardwareSync {
           }
         }
         if (sliceStart !== -1) {
-          await this.protocol.writeEEPROM(sliceStart, bytes.subarray(sliceStart, 181), isCurrent);
+          await this.protocol.writeEEPROM(sliceStart, bytes.subarray(sliceStart, checkLen), isCurrent);
         }
       } else {
         await this.protocol.writeEEPROM(0, bytes, isCurrent);

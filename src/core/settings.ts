@@ -28,7 +28,7 @@ export const DEFAULT_KEYS: KeyBindings = {
   key3: '0x00000401', // Middle Click
   key4: '0x00000801', // Back
   key5: '0x00001001', // Forward
-  key6: '0x00000302', // DPI Loop
+  key6: '0x00000102', // DPI Loop (Areson MCU hardware mapping)
 };
 
 export function normalizeKeyBindings(keys: KeyBindings): KeyBindings {
@@ -99,9 +99,18 @@ export function serializeSettingsToEEPROM(
   settings: MouseSettings,
   baseBuffer?: Uint8Array
 ): Uint8Array {
-  const buf = new Uint8Array(181);
+  const hasExtendedKeys = Object.values(settings.keys || {}).some((val) => {
+    const num = parseInt(val || '', 16);
+    return !isNaN(num) && (num & 0xff) === 0x05;
+  });
+
+  const targetLen = Math.max(
+    hasExtendedKeys ? 0x1c0 : 181,
+    baseBuffer?.length || (hasExtendedKeys ? 0x1c0 : 181)
+  );
+  const buf = new Uint8Array(targetLen);
   if (baseBuffer && baseBuffer.length >= 181) {
-    buf.set(baseBuffer.subarray(0, 181));
+    buf.set(baseBuffer.subarray(0, Math.min(baseBuffer.length, targetLen)));
   } else {
     buf.set(DEFAULT_EEPROM_TEMPLATE);
   }
@@ -152,14 +161,44 @@ export function serializeSettingsToEEPROM(
   for (let k = 1; k <= 6; k++) {
     const val = parseInt(settings.keys[`key${k}`] || '0x00000101', 16);
     const base = EEPROM_ADDR.KEY_MATRIX + (k - 1) * 4;
+    const extBase = EEPROM_ADDR.EXT_KEY_BLOCK + (k - 1) * EEPROM_ADDR.EXT_KEY_STRIDE;
     const b0 = val & 0xff;
-    const b1 = (val >> 8) & 0xff;
-    const b2 = (val >> 16) & 0xff;
-    const chk = (0x55 - b0 - b1 - b2) & 0xff;
-    buf[base] = b0;
-    buf[base + 1] = b1;
-    buf[base + 2] = b2;
-    buf[base + 3] = chk;
+
+    if (b0 === 0x05) {
+      // Extended action (Consumer Control / Multimedia)
+      buf[base] = 0x05;
+      buf[base + 1] = 0x00;
+      buf[base + 2] = 0x00;
+      buf[base + 3] = (0x55 - 0x05) & 0xff;
+
+      if (buf.length >= extBase + 8) {
+        const usageLo = (val >> 8) & 0xff;
+        const usageHi = (val >> 16) & 0xff;
+        // 7-byte Consumer Control sequence: [count=2, 0x82, lo, hi, 0x42, lo, hi] + checksum
+        const extChk = (0x55 - 0x02 - 0x82 - usageLo - usageHi - 0x42 - usageLo - usageHi) & 0xff;
+        buf[extBase] = 0x02;
+        buf[extBase + 1] = 0x82;
+        buf[extBase + 2] = usageLo;
+        buf[extBase + 3] = usageHi;
+        buf[extBase + 4] = 0x42;
+        buf[extBase + 5] = usageLo;
+        buf[extBase + 6] = usageHi;
+        buf[extBase + 7] = extChk;
+      }
+    } else {
+      const b1 = (val >> 8) & 0xff;
+      const b2 = (val >> 16) & 0xff;
+      const chk = (0x55 - b0 - b1 - b2) & 0xff;
+      buf[base] = b0;
+      buf[base + 1] = b1;
+      buf[base + 2] = b2;
+      buf[base + 3] = chk;
+
+      // Reset extended block for this button to unprogrammed state (0xFF)
+      if (buf.length >= extBase + 8) {
+        buf.fill(0xff, extBase, extBase + 8);
+      }
+    }
   }
 
   const led = settings.lighting || DEFAULT_LIGHTING;
@@ -278,6 +317,16 @@ export function deserializeSettingsFromEEPROM(
     const b0 = buf[base];
     const b1 = buf[base + 1];
     const b2 = buf[base + 2];
+    if (b0 === 0x05) {
+      const extBase = EEPROM_ADDR.EXT_KEY_BLOCK + (k - 1) * EEPROM_ADDR.EXT_KEY_STRIDE;
+      if (buf.length >= extBase + 8 && buf[extBase] === 0x02 && (buf[extBase + 1] === 0x82 || buf[extBase + 1] === 0x81)) {
+        const usageLo = buf[extBase + 2];
+        const usageHi = buf[extBase + 3];
+        const dword = (0x05 | (usageLo << 8) | (usageHi << 16)) >>> 0;
+        result.keys[`key${k}`] = '0x' + dword.toString(16).padStart(8, '0');
+        continue;
+      }
+    }
     // The 4th byte is the per-button checksum (sum mod 256 == 0x55), not part of key action code
     const dword = (b0 | (b1 << 8) | (b2 << 16)) >>> 0;
     result.keys[`key${k}`] = '0x' + dword.toString(16).padStart(8, '0');

@@ -47,6 +47,8 @@ export const EEPROM_ADDR = {
   ANGLE_SNAPPING:  0xaf, // 1 byte: 0 = off, 1 = on (FixLine)
   RIPPLE_CONTROL:  0xb1, // 1 byte: 0 = off, 1 = on
   LIGHT_OFF_MOVE:  0xb3, // 1 byte: 0 = off, 1 = on
+  EXT_KEY_BLOCK:   0x100, // Extended action sequence per button (0x100 + (btn - 1) * 0x20)
+  EXT_KEY_STRIDE:  0x20, // 32 bytes per button slot
 } as const;
 
 export const POLLING_RATES: Record<number, number> = {

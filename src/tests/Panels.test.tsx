@@ -171,7 +171,7 @@ describe('Performance and Remapping Panels', () => {
         key3: '0x00000401',
         key4: '0x00000801',
         key5: '0x00001001',
-        key6: '0x00000302',
+        key6: '0x00000102',
       };
 
       const session = new SettingsSession({ settings: noClickSettings });
